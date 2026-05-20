@@ -51,7 +51,12 @@ public final class ShareManager: ShareManaging, @unchecked Sendable {
         if let thumb = ShareManager.renderThumbnail(emoji: household.iconEmoji) {
             share[CKShare.SystemFieldKey.thumbnailImageData] = thumb as CKRecordValue
         }
-        share.publicPermission = .none
+        // Anyone with the URL can accept and contribute (read + write). The
+        // alternative (.none) requires pre-inviting each Apple ID via
+        // `share.addParticipant(_:)`, which UICloudSharingController does
+        // interactively but we don't — our flow ships a plain URL via
+        // Messages. The URL itself is the secret; treat it like one.
+        share.publicPermission = .readWrite
 
         let result = try await privateDatabase.modifyRecords(
             saving: [existingRecord, share], deleting: [], savePolicy: .ifServerRecordUnchanged
