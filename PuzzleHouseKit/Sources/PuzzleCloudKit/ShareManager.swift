@@ -36,11 +36,34 @@ public final class ShareManager: ShareManaging, @unchecked Sendable {
         // already exists.
         let existingRecord = try await privateDatabase.record(for: recordID)
 
-        // If a share already exists for this record, just return its URL —
-        // creating a second share on the same root is rejected by CloudKit.
-        if let shareReference = existingRecord.share {
-            if let share = try? await privateDatabase.record(for: shareReference.recordID) as? CKShare,
-               let url = share.url {
+        // If a share already exists for this record, reuse it but upgrade
+        // its permission + refresh title/thumbnail so older shares (created
+        // when we still defaulted to .none) become URL-acceptable.
+        if let shareReference = existingRecord.share,
+           let share = try? await privateDatabase.record(for: shareReference.recordID) as? CKShare {
+            var dirty = false
+            if share.publicPermission != .readWrite {
+                share.publicPermission = .readWrite
+                dirty = true
+            }
+            let desiredTitle = household.name as CKRecordValue
+            if (share[CKShare.SystemFieldKey.title] as? String) != household.name {
+                share[CKShare.SystemFieldKey.title] = desiredTitle
+                dirty = true
+            }
+            if let thumb = ShareManager.renderThumbnail(emoji: household.iconEmoji) {
+                let existingThumb = share[CKShare.SystemFieldKey.thumbnailImageData] as? Data
+                if existingThumb != thumb {
+                    share[CKShare.SystemFieldKey.thumbnailImageData] = thumb as CKRecordValue
+                    dirty = true
+                }
+            }
+            if dirty {
+                let _ = try? await privateDatabase.modifyRecords(
+                    saving: [share], deleting: [], savePolicy: .changedKeys
+                )
+            }
+            if let url = share.url {
                 return url
             }
         }
