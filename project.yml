@@ -14,6 +14,18 @@ settings:
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: NO
+    # Per-target provisioning-profile variables. Default to empty so local
+    # debug builds use Automatic signing; the release CI flow overrides
+    # them via xcodebuild build settings to force Manual + App Store
+    # profiles. See Scripts/build-ios.sh + Scripts/asc_ensure_profile.py.
+    PUZZLE_HOUSE_APP_PROFILE_NAME: ""
+    PUZZLE_HOUSE_APP_PROFILE_UUID: ""
+    PUZZLE_HOUSE_SHARE_EXTENSION_PROFILE_NAME: ""
+    PUZZLE_HOUSE_SHARE_EXTENSION_PROFILE_UUID: ""
+    PUZZLE_HOUSE_MESSAGES_PROFILE_NAME: ""
+    PUZZLE_HOUSE_MESSAGES_PROFILE_UUID: ""
+    PUZZLE_HOUSE_WIDGET_PROFILE_NAME: ""
+    PUZZLE_HOUSE_WIDGET_PROFILE_UUID: ""
 
 packages:
   PuzzleHouseKit:
@@ -47,6 +59,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jestats.PuzzleHouse
         PRODUCT_NAME: Puzzle House
+        PROVISIONING_PROFILE_SPECIFIER: "$(PUZZLE_HOUSE_APP_PROFILE_NAME)"
+        PROVISIONING_PROFILE: "$(PUZZLE_HOUSE_APP_PROFILE_UUID)"
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: YES
         DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER: YES
@@ -80,6 +94,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jestats.PuzzleHouse.ShareExtension
         PRODUCT_NAME: PuzzleHouseShareExtension
+        PROVISIONING_PROFILE_SPECIFIER: "$(PUZZLE_HOUSE_SHARE_EXTENSION_PROFILE_NAME)"
+        PROVISIONING_PROFILE: "$(PUZZLE_HOUSE_SHARE_EXTENSION_PROFILE_UUID)"
         INFOPLIST_FILE: PuzzleHouseShareExtension/Info.plist
         CODE_SIGN_ENTITLEMENTS: PuzzleHouseShareExtension/PuzzleHouseShareExtension.entitlements
         SKIP_INSTALL: YES
@@ -101,6 +117,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jestats.PuzzleHouse.Messages
         PRODUCT_NAME: PuzzleHouseMessages
+        PROVISIONING_PROFILE_SPECIFIER: "$(PUZZLE_HOUSE_MESSAGES_PROFILE_NAME)"
+        PROVISIONING_PROFILE: "$(PUZZLE_HOUSE_MESSAGES_PROFILE_UUID)"
         INFOPLIST_FILE: PuzzleHouseMessages/Info.plist
         CODE_SIGN_ENTITLEMENTS: PuzzleHouseMessages/PuzzleHouseMessages.entitlements
         SKIP_INSTALL: YES
@@ -120,6 +138,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jestats.PuzzleHouse.Widget
         PRODUCT_NAME: PuzzleHouseWidget
+        PROVISIONING_PROFILE_SPECIFIER: "$(PUZZLE_HOUSE_WIDGET_PROFILE_NAME)"
+        PROVISIONING_PROFILE: "$(PUZZLE_HOUSE_WIDGET_PROFILE_UUID)"
         INFOPLIST_FILE: PuzzleHouseWidget/Info.plist
         CODE_SIGN_ENTITLEMENTS: PuzzleHouseWidget/PuzzleHouseWidget.entitlements
         SKIP_INSTALL: YES

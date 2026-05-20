@@ -1,0 +1,166 @@
+name: Release
+
+# Tag-driven release pipeline for Puzzle House. Push `v0.1.0` (etc.) and
+# this workflow:
+#   1. Bumps CURRENT_PROJECT_VERSION to the GitHub run number (App Store
+#      Connect rejects duplicate build numbers, so this gives us a
+#      monotonically-increasing integer without committing back).
+#   2. Imports the Apple Distribution signing cert into a temp keychain.
+#   3. Calls Scripts/build-ios.sh upload, which:
+#        - regenerates the Xcode project via xcodegen
+#        - ensures App Store provisioning profiles for all 4 targets
+#          (main app + share / messages / widget extensions) via the
+#          ASC REST API
+#        - archives with manual signing
+#        - exports a signed .ipa
+#        - uploads to App Store Connect via `xcrun altool`
+#
+# Required GitHub secrets (Settings → Secrets and variables → Actions):
+#   AC_API_KEY_ID            — ASC API key id, 10 chars
+#   AC_API_ISSUER_ID         — issuer UUID
+#   AC_API_KEY_P8_BASE64     — base64 of the .p8 private key file (or its
+#                              raw PEM contents — auto-detected)
+#   IOS_DIST_CERT_P12_BASE64 — base64 of the Apple Distribution .p12
+#                              exported from Keychain Access
+#   IOS_DIST_CERT_PASSWORD   — password for that .p12
+#   KEYCHAIN_PASSWORD        — arbitrary password for the temporary
+#                              build keychain
+#
+# Required GitHub variables:
+#   TEAM_ID                  — your 10-char Apple Developer team id
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name to release (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ios-testflight:
+    name: iOS TestFlight upload
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+      AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+      AC_API_KEY_P8_BASE64: ${{ secrets.AC_API_KEY_P8_BASE64 }}
+      IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+      IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      TEAM_ID: ${{ vars.TEAM_ID }}
+
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      # The macos-26 runner ships multiple Xcode versions. Pick the
+      # newest non-beta Xcode 26.x that ships the iOS device platform.
+      # 26.5 lacks the iOS device platform component on this image; we
+      # skip beta builds and 26.5 explicitly.
+      - name: Select archive-compatible Xcode 26
+        run: |
+          XCODE_PATH=$(
+            find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' \
+              | grep -vi beta \
+              | grep -Ev 'Xcode_26\.5([^0-9]|$)' \
+              | sort -V \
+              | tail -n 1
+          )
+          if [ -z "$XCODE_PATH" ]; then
+            echo "No archive-compatible non-beta Xcode 26.x below 26.5 found." >&2
+            ls /Applications/ | grep -i Xcode || true
+            exit 1
+          fi
+          echo "Selecting $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          # Pin DEVELOPER_DIR + PATH so bare `xcodebuild` and `xcrun` both
+          # resolve to the chosen Xcode. The runner image presets these
+          # to whichever Xcode-beta is newest, which fights xcode-select.
+          echo "DEVELOPER_DIR=$XCODE_PATH/Contents/Developer" >> "$GITHUB_ENV"
+          echo "$XCODE_PATH/Contents/Developer/usr/bin" >> "$GITHUB_PATH"
+
+      - name: Show available iOS SDKs (diagnostic)
+        run: xcodebuild -showsdks | grep -i ios
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      # PyJWT + cryptography power asc_ensure_profile.py and the
+      # inline ASC pre-flight in build-ios.sh. macos-26's pip3 is too
+      # old to accept --break-system-packages, so use a venv.
+      - name: Install Python deps for ASC API
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/ascvenv
+          /tmp/ascvenv/bin/pip install --quiet pyjwt cryptography
+          echo "/tmp/ascvenv/bin" >> "$GITHUB_PATH"
+
+      # Import the Apple Distribution cert + private key into a temp
+      # keychain so xcodebuild has a signing identity matching the
+      # provisioning profiles asc_ensure_profile.py downloads. Without
+      # this step, archive fails with "No signing certificate 'Apple
+      # Distribution' found".
+      - name: Import Apple Distribution signing cert
+        env:
+          P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="build.keychain"
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}"
+          security default-keychain -s "${KEYCHAIN}"
+          security set-keychain-settings -lut 7200 "${KEYCHAIN}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}"
+          echo "${P12_BASE64}" | base64 -D > /tmp/ios-cert.p12
+          security import /tmp/ios-cert.p12 -k "${KEYCHAIN}" \
+            -P "${P12_PASSWORD}" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          rm -f /tmp/ios-cert.p12
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}"
+          security find-identity -v -p codesigning "${KEYCHAIN}" \
+            | grep -i "Apple Distribution" || {
+              echo "::error::Apple Distribution identity not visible after import" >&2
+              exit 1
+            }
+
+      # MARKETING_VERSION stays at whatever project.yml says (0.1.0,
+      # etc.); CURRENT_PROJECT_VERSION must monotonically increase per
+      # upload — App Store Connect rejects duplicates. Using the
+      # GitHub run number gives us a stable, increasing integer.
+      - name: Bump CURRENT_PROJECT_VERSION to GitHub run number
+        run: |
+          set -euo pipefail
+          sed -i.bak "s/CURRENT_PROJECT_VERSION: 1$/CURRENT_PROJECT_VERSION: \"${GITHUB_RUN_NUMBER}\"/" project.yml
+          rm -f project.yml.bak
+
+      - name: Build + upload to TestFlight
+        run: ./Scripts/build-ios.sh upload
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Puzzle House ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
