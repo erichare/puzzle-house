@@ -1,0 +1,31 @@
+# Swift / SwiftPM
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+xcuserdata/
+
+# XcodeGen-generated project is regenerated from project.yml on demand.
+# Track the .xcodeproj if you want collaborators without xcodegen installed
+# to be able to open the project directly; otherwise leave it ignored.
+# PuzzleHouse.xcodeproj/
+
+# Xcode
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Test artifacts
+*.xcresult
+coverage.lcov

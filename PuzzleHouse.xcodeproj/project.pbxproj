@@ -1,0 +1,680 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0907B198443B1B29E330F967 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AAE898A4ECDCC06BD3B026A /* ShareViewController.swift */; };
+		36783AD5A5E4FD3FF2DB1835 /* PuzzleHouseApp in Frameworks */ = {isa = PBXBuildFile; productRef = B01F5D109BAC40DF7B7E6E75 /* PuzzleHouseApp */; };
+		53D89315A39A3E4461137C19 /* MessagesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 444FC401E1C5F48ED17F22D4 /* MessagesViewController.swift */; };
+		602B5691F56669B6C9E92FF0 /* PuzzleHouseMessages.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8B7F061671791BFFA0068ABF /* PuzzleHouseMessages.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		689129F6389B2648D0349A17 /* PuzzleHouseApp in Frameworks */ = {isa = PBXBuildFile; productRef = A2C7A08A53BF603D79C84301 /* PuzzleHouseApp */; };
+		6F2B6161C5A6618C61A61F74 /* PuzzleCloudKit in Frameworks */ = {isa = PBXBuildFile; productRef = A51EE8BAC45BD861391B0631 /* PuzzleCloudKit */; };
+		6F3D957A82AA285857A3FF5E /* PuzzleHouseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89474FC1BA60E74D3DD8C01C /* PuzzleHouseApp.swift */; };
+		90404136B5C0D171DDB917AD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CC5422EB430B5A9E0A9702B6 /* Assets.xcassets */; };
+		977F5A321ECBF80DF404FA58 /* PuzzleCloudKit in Frameworks */ = {isa = PBXBuildFile; productRef = 791C79DDA19FCCC6CCFBF1B7 /* PuzzleCloudKit */; };
+		A025CD4CFAD73A1AE403FB77 /* PuzzleParsers in Frameworks */ = {isa = PBXBuildFile; productRef = 17ACCA4A5AD7758EF9196552 /* PuzzleParsers */; };
+		B4672B41CDAA18D0B75E4270 /* PuzzleHouseShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AD54F97EDE46D46724708118 /* PuzzleHouseShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FFA694B86ADA0C3422630D10 /* PuzzleCloudKit in Frameworks */ = {isa = PBXBuildFile; productRef = F5845A8B4A97235DB6F389D2 /* PuzzleCloudKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5298B47F242266D22F4E8A65 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 67F645F75358F8A0BCAE5D16 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BE4C73CB9F2C35B8356EACF1;
+			remoteInfo = PuzzleHouseShareExtension;
+		};
+		B81762D4EF771F90068CA56C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 67F645F75358F8A0BCAE5D16 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 652CC9D2C8A988D1F6A22577;
+			remoteInfo = PuzzleHouseMessages;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A200674CEA717B36D8E7BCC3 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B4672B41CDAA18D0B75E4270 /* PuzzleHouseShareExtension.appex in Embed Foundation Extensions */,
+				602B5691F56669B6C9E92FF0 /* PuzzleHouseMessages.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		24EE9E9015FBDB09197EA6E1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		26B08155AEBF7640E54C59F5 /* PuzzleHouseShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PuzzleHouseShareExtension.entitlements; sourceTree = "<group>"; };
+		444FC401E1C5F48ED17F22D4 /* MessagesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewController.swift; sourceTree = "<group>"; };
+		4C3C2536BB819BB1C00106AB /* Puzzle House.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Puzzle House.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5155046E027E8D5E60153C07 /* PuzzleHouseKit */ = {isa = PBXFileReference; lastKnownFileType = folder; path = PuzzleHouseKit; sourceTree = SOURCE_ROOT; };
+		89474FC1BA60E74D3DD8C01C /* PuzzleHouseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleHouseApp.swift; sourceTree = "<group>"; };
+		8B7F061671791BFFA0068ABF /* PuzzleHouseMessages.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PuzzleHouseMessages.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8C970A29E9D83112928D38D9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		9AAE898A4ECDCC06BD3B026A /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		A57C2CB546FFA30262AEDD47 /* PuzzleHouse.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PuzzleHouse.entitlements; sourceTree = "<group>"; };
+		AD54F97EDE46D46724708118 /* PuzzleHouseShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PuzzleHouseShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC5422EB430B5A9E0A9702B6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CD2864609F827CECE6AB4E1C /* PuzzleHouseMessages.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PuzzleHouseMessages.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0776CA440152573B67EB987A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				36783AD5A5E4FD3FF2DB1835 /* PuzzleHouseApp in Frameworks */,
+				FFA694B86ADA0C3422630D10 /* PuzzleCloudKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2EBF426FC3E372721E324824 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A025CD4CFAD73A1AE403FB77 /* PuzzleParsers in Frameworks */,
+				6F2B6161C5A6618C61A61F74 /* PuzzleCloudKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1A1B807865BCCFE2EB391DB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				689129F6389B2648D0349A17 /* PuzzleHouseApp in Frameworks */,
+				977F5A321ECBF80DF404FA58 /* PuzzleCloudKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1369CE76D44BE2A0300294D4 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				5155046E027E8D5E60153C07 /* PuzzleHouseKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		351D972F09461FF6C7F293EF = {
+			isa = PBXGroup;
+			children = (
+				1369CE76D44BE2A0300294D4 /* Packages */,
+				F779159956564FA33E6994D3 /* PuzzleHouse */,
+				54C288624688A282D70A49C3 /* PuzzleHouseMessages */,
+				68D903F85DE3C6F967AC820E /* PuzzleHouseShareExtension */,
+				8179F7294A018B9F94EB74B1 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		54C288624688A282D70A49C3 /* PuzzleHouseMessages */ = {
+			isa = PBXGroup;
+			children = (
+				24EE9E9015FBDB09197EA6E1 /* Info.plist */,
+				444FC401E1C5F48ED17F22D4 /* MessagesViewController.swift */,
+				CD2864609F827CECE6AB4E1C /* PuzzleHouseMessages.entitlements */,
+			);
+			path = PuzzleHouseMessages;
+			sourceTree = "<group>";
+		};
+		68D903F85DE3C6F967AC820E /* PuzzleHouseShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				8C970A29E9D83112928D38D9 /* Info.plist */,
+				26B08155AEBF7640E54C59F5 /* PuzzleHouseShareExtension.entitlements */,
+				9AAE898A4ECDCC06BD3B026A /* ShareViewController.swift */,
+			);
+			path = PuzzleHouseShareExtension;
+			sourceTree = "<group>";
+		};
+		8179F7294A018B9F94EB74B1 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4C3C2536BB819BB1C00106AB /* Puzzle House.app */,
+				8B7F061671791BFFA0068ABF /* PuzzleHouseMessages.appex */,
+				AD54F97EDE46D46724708118 /* PuzzleHouseShareExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F779159956564FA33E6994D3 /* PuzzleHouse */ = {
+			isa = PBXGroup;
+			children = (
+				CC5422EB430B5A9E0A9702B6 /* Assets.xcassets */,
+				A57C2CB546FFA30262AEDD47 /* PuzzleHouse.entitlements */,
+				89474FC1BA60E74D3DD8C01C /* PuzzleHouseApp.swift */,
+			);
+			path = PuzzleHouse;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0EE66CADC071D0A37A3082FA /* PuzzleHouse */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 66592DE4ED7E9824331A419B /* Build configuration list for PBXNativeTarget "PuzzleHouse" */;
+			buildPhases = (
+				36CDD46D59EFBCC605F07008 /* Sources */,
+				8301D4C548FDA6CF44370255 /* Resources */,
+				0776CA440152573B67EB987A /* Frameworks */,
+				A200674CEA717B36D8E7BCC3 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				91BC9E433062E1B3407EF25E /* PBXTargetDependency */,
+				B757E6A43E2177A8C84BAC19 /* PBXTargetDependency */,
+			);
+			name = PuzzleHouse;
+			packageProductDependencies = (
+				B01F5D109BAC40DF7B7E6E75 /* PuzzleHouseApp */,
+				F5845A8B4A97235DB6F389D2 /* PuzzleCloudKit */,
+			);
+			productName = PuzzleHouse;
+			productReference = 4C3C2536BB819BB1C00106AB /* Puzzle House.app */;
+			productType = "com.apple.product-type.application";
+		};
+		652CC9D2C8A988D1F6A22577 /* PuzzleHouseMessages */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A865B7E2843C5353A0BBF502 /* Build configuration list for PBXNativeTarget "PuzzleHouseMessages" */;
+			buildPhases = (
+				4A2DB4FD95DE157294430290 /* Sources */,
+				E1A1B807865BCCFE2EB391DB /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PuzzleHouseMessages;
+			packageProductDependencies = (
+				A2C7A08A53BF603D79C84301 /* PuzzleHouseApp */,
+				791C79DDA19FCCC6CCFBF1B7 /* PuzzleCloudKit */,
+			);
+			productName = PuzzleHouseMessages;
+			productReference = 8B7F061671791BFFA0068ABF /* PuzzleHouseMessages.appex */;
+			productType = "com.apple.product-type.app-extension.messages";
+		};
+		BE4C73CB9F2C35B8356EACF1 /* PuzzleHouseShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C339FD6AC94FCDCA8BE95A85 /* Build configuration list for PBXNativeTarget "PuzzleHouseShareExtension" */;
+			buildPhases = (
+				C1C9258CF69CB81B996C0B26 /* Sources */,
+				2EBF426FC3E372721E324824 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PuzzleHouseShareExtension;
+			packageProductDependencies = (
+				17ACCA4A5AD7758EF9196552 /* PuzzleParsers */,
+				A51EE8BAC45BD861391B0631 /* PuzzleCloudKit */,
+			);
+			productName = PuzzleHouseShareExtension;
+			productReference = AD54F97EDE46D46724708118 /* PuzzleHouseShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		67F645F75358F8A0BCAE5D16 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					0EE66CADC071D0A37A3082FA = {
+						ProvisioningStyle = Automatic;
+					};
+					652CC9D2C8A988D1F6A22577 = {
+						ProvisioningStyle = Automatic;
+					};
+					BE4C73CB9F2C35B8356EACF1 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = D2F6FCAFDE8C766F9667A925 /* Build configuration list for PBXProject "PuzzleHouse" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 351D972F09461FF6C7F293EF;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7BF8DDCEDE4FBA869D936E52 /* XCLocalSwiftPackageReference "PuzzleHouseKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8179F7294A018B9F94EB74B1 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0EE66CADC071D0A37A3082FA /* PuzzleHouse */,
+				652CC9D2C8A988D1F6A22577 /* PuzzleHouseMessages */,
+				BE4C73CB9F2C35B8356EACF1 /* PuzzleHouseShareExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8301D4C548FDA6CF44370255 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				90404136B5C0D171DDB917AD /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		36CDD46D59EFBCC605F07008 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6F3D957A82AA285857A3FF5E /* PuzzleHouseApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4A2DB4FD95DE157294430290 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				53D89315A39A3E4461137C19 /* MessagesViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C1C9258CF69CB81B996C0B26 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0907B198443B1B29E330F967 /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		91BC9E433062E1B3407EF25E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BE4C73CB9F2C35B8356EACF1 /* PuzzleHouseShareExtension */;
+			targetProxy = 5298B47F242266D22F4E8A65 /* PBXContainerItemProxy */;
+		};
+		B757E6A43E2177A8C84BAC19 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 652CC9D2C8A988D1F6A22577 /* PuzzleHouseMessages */;
+			targetProxy = B81762D4EF771F90068CA56C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		29FD34014EED62A311921C6D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "iMessage App Icon";
+				CODE_SIGN_ENTITLEMENTS = PuzzleHouseMessages/PuzzleHouseMessages.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5M9UT7VQ8Q;
+				INFOPLIST_FILE = PuzzleHouseMessages/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jestats.PuzzleHouse.Messages;
+				PRODUCT_NAME = PuzzleHouseMessages;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7FAFC09A8D830660479D68AC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PuzzleHouseShareExtension/PuzzleHouseShareExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5M9UT7VQ8Q;
+				INFOPLIST_FILE = PuzzleHouseShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jestats.PuzzleHouse.ShareExtension;
+				PRODUCT_NAME = PuzzleHouseShareExtension;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		832103B0BF26D9FC321A4278 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PuzzleHouse/PuzzleHouse.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = YES;
+				DEVELOPMENT_TEAM = 5M9UT7VQ8Q;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Puzzle House";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jestats.PuzzleHouse;
+				PRODUCT_NAME = "Puzzle House";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		926A95A4A96FAE00C64027C5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PuzzleHouseShareExtension/PuzzleHouseShareExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5M9UT7VQ8Q;
+				INFOPLIST_FILE = PuzzleHouseShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jestats.PuzzleHouse.ShareExtension;
+				PRODUCT_NAME = PuzzleHouseShareExtension;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D7769892B23B7AD6D0F5F348 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "iMessage App Icon";
+				CODE_SIGN_ENTITLEMENTS = PuzzleHouseMessages/PuzzleHouseMessages.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5M9UT7VQ8Q;
+				INFOPLIST_FILE = PuzzleHouseMessages/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jestats.PuzzleHouse.Messages;
+				PRODUCT_NAME = PuzzleHouseMessages;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D80A108518A6D247A79AA413 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PuzzleHouse/PuzzleHouse.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = YES;
+				DEVELOPMENT_TEAM = 5M9UT7VQ8Q;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Puzzle House";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jestats.PuzzleHouse;
+				PRODUCT_NAME = "Puzzle House";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D8CD5B7F0276E1785A5CD635 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+		FC4A22F7CA5097E3BBB2DBB8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		66592DE4ED7E9824331A419B /* Build configuration list for PBXNativeTarget "PuzzleHouse" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D80A108518A6D247A79AA413 /* Debug */,
+				832103B0BF26D9FC321A4278 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A865B7E2843C5353A0BBF502 /* Build configuration list for PBXNativeTarget "PuzzleHouseMessages" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				29FD34014EED62A311921C6D /* Debug */,
+				D7769892B23B7AD6D0F5F348 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C339FD6AC94FCDCA8BE95A85 /* Build configuration list for PBXNativeTarget "PuzzleHouseShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7FAFC09A8D830660479D68AC /* Debug */,
+				926A95A4A96FAE00C64027C5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D2F6FCAFDE8C766F9667A925 /* Build configuration list for PBXProject "PuzzleHouse" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D8CD5B7F0276E1785A5CD635 /* Debug */,
+				FC4A22F7CA5097E3BBB2DBB8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		7BF8DDCEDE4FBA869D936E52 /* XCLocalSwiftPackageReference "PuzzleHouseKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = PuzzleHouseKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		17ACCA4A5AD7758EF9196552 /* PuzzleParsers */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PuzzleParsers;
+		};
+		791C79DDA19FCCC6CCFBF1B7 /* PuzzleCloudKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PuzzleCloudKit;
+		};
+		A2C7A08A53BF603D79C84301 /* PuzzleHouseApp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PuzzleHouseApp;
+		};
+		A51EE8BAC45BD861391B0631 /* PuzzleCloudKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PuzzleCloudKit;
+		};
+		B01F5D109BAC40DF7B7E6E75 /* PuzzleHouseApp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PuzzleHouseApp;
+		};
+		F5845A8B4A97235DB6F389D2 /* PuzzleCloudKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PuzzleCloudKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 67F645F75358F8A0BCAE5D16 /* Project object */;
+}
