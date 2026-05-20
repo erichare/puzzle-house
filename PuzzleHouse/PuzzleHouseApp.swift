@@ -57,6 +57,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// Silent CloudKit pushes land here. We refresh data and then run the
     /// "solved before you" / "today's champion" checks, both of which schedule
     /// local notifications if anything is new.
+    /// Called when the user taps a CloudKit Share invite URL. iOS launches
+    /// the app, decodes the share metadata from the URL, and hands it here.
+    /// Without this method, the OS falls back to "You need a newer version
+    /// of [App] to open this" — the catch-all "no handler" error.
+    func application(
+        _ application: UIApplication,
+        userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata
+    ) {
+        Task { @MainActor in
+            await PuzzleHouseSharedStore.current?.acceptIncomingShare(cloudKitShareMetadata)
+        }
+    }
+
     func application(
         _ application: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],

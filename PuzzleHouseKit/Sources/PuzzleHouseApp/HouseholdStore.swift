@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import CloudKit
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -235,13 +236,21 @@ public final class HouseholdStore {
                 gameID: placeholder.gameID,
                 puzzleNumber: placeholder.puzzleNumber
             )
+            // The Share Extension computed `puzzleDay` at share time using
+            // the user's then-current time zone; respect that rather than
+            // re-deriving from submittedAt (which would jump to a new day
+            // if the user crossed midnight between sharing and the drain
+            // running). `household` is kept in the guard above so we can
+            // still surface it as an error if it disappears, but we don't
+            // need its time zone here.
+            _ = household
             let real = PuzzleResult(
                 id: deterministicID,
                 householdID: householdID,
                 authorUserID: uid,
                 gameID: placeholder.gameID,
                 puzzleNumber: placeholder.puzzleNumber,
-                puzzleDay: PuzzleDay(date: placeholder.submittedAt, timeZone: household.timeZone),
+                puzzleDay: placeholder.puzzleDay,
                 rawScore: placeholder.rawScore,
                 rawPayload: placeholder.rawPayload,
                 gridData: placeholder.gridData,
@@ -376,6 +385,23 @@ public final class HouseholdStore {
 
     public func inviteURL(for household: Household) async throws -> URL {
         try await service.shareURL(for: household)
+    }
+
+    /// Called by the AppDelegate when iOS hands us a CKShare metadata after
+    /// the recipient taps a share URL. Accepts the share, refreshes the
+    /// household list so the new entry shows up in the Houses tab, and
+    /// switches to it.
+    public func acceptIncomingShare(_ metadata: CKShare.Metadata) async {
+        do {
+            let id = try await service.acceptShare(metadata)
+            households = (try? await service.households()) ?? households
+            // Even if `households()` fails, we still know which one we just
+            // joined — switching forces a member/result load against that
+            // household's shared zone.
+            await switchHousehold(id)
+        } catch {
+            state = .error("Couldn't accept invite: \(String(describing: error))")
+        }
     }
 
     public func submit(parsed: ParsedResult, rawPayload: String) async throws {

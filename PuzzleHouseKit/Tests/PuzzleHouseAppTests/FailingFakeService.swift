@@ -1,4 +1,5 @@
 import Foundation
+import CloudKit
 import PuzzleCore
 import PuzzleCloudKit
 
@@ -21,6 +22,9 @@ final class FailingFakeService: CloudKitServicing, @unchecked Sendable {
         throw CloudKitServiceError.accountUnavailable
     }
     func shareURL(for household: Household) async throws -> URL {
+        throw CloudKitServiceError.accountUnavailable
+    }
+    func acceptShare(_ metadata: CKShare.Metadata) async throws -> Household.ID {
         throw CloudKitServiceError.accountUnavailable
     }
     func members(in householdID: Household.ID) async throws -> [Membership] {

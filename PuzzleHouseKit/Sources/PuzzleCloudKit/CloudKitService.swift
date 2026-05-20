@@ -14,6 +14,7 @@ public protocol CloudKitServicing: Sendable {
     func update(_ household: Household) async throws
     func deleteHousehold(_ id: Household.ID) async throws
     func shareURL(for household: Household) async throws -> URL
+    func acceptShare(_ metadata: CKShare.Metadata) async throws -> Household.ID
 
     func members(in householdID: Household.ID) async throws -> [Membership]
 
@@ -166,6 +167,14 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
 
     public func shareURL(for household: Household) async throws -> URL {
         try await shareManager.createShare(for: household)
+    }
+
+    public func acceptShare(_ metadata: CKShare.Metadata) async throws -> Household.ID {
+        let id = try await shareManager.accept(shareMetadata: metadata)
+        // Newly-accepted shared zones live in the shared DB; cache the scope
+        // so subsequent `members`/`results` calls hit the right database.
+        rememberScope(id, .shared)
+        return id
     }
 
     // MARK: - Members

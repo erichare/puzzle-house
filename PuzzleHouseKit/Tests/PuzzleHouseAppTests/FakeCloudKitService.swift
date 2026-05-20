@@ -1,4 +1,5 @@
 import Foundation
+import CloudKit
 import PuzzleCore
 import PuzzleCloudKit
 
@@ -53,6 +54,10 @@ final class FakeCloudKitService: CloudKitServicing, @unchecked Sendable {
 
     func shareURL(for household: Household) async throws -> URL {
         URL(string: "https://www.icloud.com/share/fake-\(household.id)")!
+    }
+
+    func acceptShare(_ metadata: CKShare.Metadata) async throws -> Household.ID {
+        metadata.rootRecordID.recordName
     }
 
     func members(in householdID: Household.ID) async throws -> [Membership] {
