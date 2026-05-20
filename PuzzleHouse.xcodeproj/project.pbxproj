@@ -21,6 +21,7 @@
 		977F5A321ECBF80DF404FA58 /* PuzzleCloudKit in Frameworks */ = {isa = PBXBuildFile; productRef = 791C79DDA19FCCC6CCFBF1B7 /* PuzzleCloudKit */; };
 		A025CD4CFAD73A1AE403FB77 /* PuzzleParsers in Frameworks */ = {isa = PBXBuildFile; productRef = 17ACCA4A5AD7758EF9196552 /* PuzzleParsers */; };
 		B4672B41CDAA18D0B75E4270 /* PuzzleHouseShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AD54F97EDE46D46724708118 /* PuzzleHouseShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CB4F161DF64970451134FEF9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 511204ECE92B971A7D87AF8D /* Assets.xcassets */; };
 		FFA694B86ADA0C3422630D10 /* PuzzleCloudKit in Frameworks */ = {isa = PBXBuildFile; productRef = F5845A8B4A97235DB6F389D2 /* PuzzleCloudKit */; };
 /* End PBXBuildFile section */
 
@@ -71,6 +72,7 @@
 		386D65C8695277CB846AAF02 /* PuzzleHouseWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleHouseWidget.swift; sourceTree = "<group>"; };
 		444FC401E1C5F48ED17F22D4 /* MessagesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewController.swift; sourceTree = "<group>"; };
 		4C3C2536BB819BB1C00106AB /* PuzzleHouse.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PuzzleHouse.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		511204ECE92B971A7D87AF8D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5155046E027E8D5E60153C07 /* PuzzleHouseKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PuzzleHouseKit; path = PuzzleHouseKit; sourceTree = SOURCE_ROOT; };
 		599D4E5902590AD88C669BC5 /* PuzzleHouseWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PuzzleHouseWidget.entitlements; sourceTree = "<group>"; };
 		89474FC1BA60E74D3DD8C01C /* PuzzleHouseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleHouseApp.swift; sourceTree = "<group>"; };
@@ -147,6 +149,7 @@
 		54C288624688A282D70A49C3 /* PuzzleHouseMessages */ = {
 			isa = PBXGroup;
 			children = (
+				511204ECE92B971A7D87AF8D /* Assets.xcassets */,
 				24EE9E9015FBDB09197EA6E1 /* Info.plist */,
 				444FC401E1C5F48ED17F22D4 /* MessagesViewController.swift */,
 				CD2864609F827CECE6AB4E1C /* PuzzleHouseMessages.entitlements */,
@@ -229,6 +232,7 @@
 			buildConfigurationList = A865B7E2843C5353A0BBF502 /* Build configuration list for PBXNativeTarget "PuzzleHouseMessages" */;
 			buildPhases = (
 				4A2DB4FD95DE157294430290 /* Sources */,
+				06C3158936127AE2D46898DC /* Resources */,
 				E1A1B807865BCCFE2EB391DB /* Frameworks */,
 			);
 			buildRules = (
@@ -336,6 +340,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		06C3158936127AE2D46898DC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CB4F161DF64970451134FEF9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8301D4C548FDA6CF44370255 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
