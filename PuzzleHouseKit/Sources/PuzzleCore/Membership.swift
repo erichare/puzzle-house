@@ -11,6 +11,10 @@ public struct Membership: Hashable, Sendable, Codable, Identifiable {
     public let userID: String
     public var displayName: String
     public var avatarEmoji: String
+    /// Optional PNG bytes for a custom avatar photo. Capped to ~256×256 by
+    /// the editor flow so it fits inside CloudKit's record size budget.
+    /// Nil means "use `avatarEmoji` instead".
+    public var avatarPhotoData: Data?
     public var role: Role
     public let joinedAt: Date
 
@@ -25,6 +29,7 @@ public struct Membership: Hashable, Sendable, Codable, Identifiable {
         userID: String,
         displayName: String,
         avatarEmoji: String = "🧩",
+        avatarPhotoData: Data? = nil,
         role: Role = .member,
         joinedAt: Date = Date()
     ) {
@@ -33,6 +38,7 @@ public struct Membership: Hashable, Sendable, Codable, Identifiable {
         self.userID = userID
         self.displayName = displayName
         self.avatarEmoji = avatarEmoji
+        self.avatarPhotoData = avatarPhotoData
         self.role = role
         self.joinedAt = joinedAt
     }

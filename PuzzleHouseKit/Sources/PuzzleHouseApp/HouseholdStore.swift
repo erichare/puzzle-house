@@ -1,5 +1,8 @@
 import Foundation
 import Observation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 import PuzzleCore
 import PuzzleCloudKit
 import PuzzleParsers
@@ -8,6 +11,14 @@ import PuzzleScoring
 /// Observable application state. Holds the current user, the list of
 /// households the user belongs to, the active household, today's results, and
 /// a 14-day rolling window used for streak math.
+/// Process-wide accessor so the `AppDelegate` (which exists outside the
+/// SwiftUI hierarchy) can route incoming silent pushes to whichever store
+/// the app set up at launch. Set once during `PuzzleHouseAppEntry.init`.
+@MainActor
+public enum PuzzleHouseSharedStore {
+    public static var current: HouseholdStore?
+}
+
 @MainActor
 @Observable
 public final class HouseholdStore {
@@ -26,7 +37,13 @@ public final class HouseholdStore {
     public private(set) var today: PuzzleDay
     public private(set) var todayResults: [PuzzleResult] = []
     public private(set) var recentResults: [PuzzleResult] = []
+    public private(set) var reactions: [Reaction] = []
     public private(set) var notificationStatus: AuthorizationStatus = .notDetermined
+    public private(set) var lastDrainError: String?
+    public private(set) var lastDrainCount: Int = 0
+    /// True while we're in the middle of swapping to / refreshing a household.
+    /// Driven by `loadHousehold` so UI can show a spinner.
+    public private(set) var isLoadingHousehold: Bool = false
     public var preferences: UserPreferences
 
     /// How many days of history to keep loaded for streak math.
@@ -35,18 +52,21 @@ public final class HouseholdStore {
     private let service: any CloudKitServicing
     private let queue: OfflineWriteQueue?
     private let notifications: any NotificationServicing
+    private let widgetStore: WidgetSnapshotStore?
     private let clock: @Sendable () -> Date
 
     public init(
         service: any CloudKitServicing,
         queue: OfflineWriteQueue? = nil,
         notifications: any NotificationServicing = NotificationService(),
+        widgetStore: WidgetSnapshotStore? = nil,
         preferences: UserPreferences = .init(),
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.service = service
         self.queue = queue
         self.notifications = notifications
+        self.widgetStore = widgetStore
         self.preferences = preferences
         self.clock = now
         self.today = PuzzleDay(date: now(), timeZone: .current)
@@ -95,6 +115,10 @@ public final class HouseholdStore {
 
     public func avatarEmoji(for userID: String) -> String {
         members.first(where: { $0.userID == userID })?.avatarEmoji ?? "🧩"
+    }
+
+    public func avatarPhotoData(for userID: String) -> Data? {
+        members.first(where: { $0.userID == userID })?.avatarPhotoData
     }
 
     // MARK: - Bootstrap
@@ -172,18 +196,39 @@ public final class HouseholdStore {
         await loadHousehold(id)
     }
 
+    /// How many submissions are currently waiting in the offline queue. The
+    /// Settings → Diagnostics screen reads this; the Share Extension drops
+    /// entries here when it can't reach iCloud directly.
+    public func pendingQueueCount() -> Int {
+        (try? queue?.count()) ?? 0
+    }
+
     /// Called from the app entry point on `scenePhase` → `.active` and after
-    /// successful submits. Idempotent; safe to call repeatedly.
+    /// successful submits. Idempotent; safe to call repeatedly. Records the
+    /// last drain count + any error so the Diagnostics view can show what
+    /// happened.
     public func drainPendingResults() async {
-        guard let queue,
-              let householdID = selectedHouseholdID,
+        guard let queue else {
+            lastDrainError = "No App Group container available — drain skipped."
+            return
+        }
+        guard let householdID = selectedHouseholdID,
               let uid = currentUserID,
               let household = selectedHousehold
-        else { return }
+        else {
+            lastDrainError = "No household selected yet — drain skipped."
+            return
+        }
 
         let pending = (try? queue.pending()) ?? []
-        guard !pending.isEmpty else { return }
+        guard !pending.isEmpty else {
+            lastDrainCount = 0
+            lastDrainError = nil
+            return
+        }
 
+        var submitted = 0
+        var firstError: String?
         for placeholder in pending {
             let deterministicID = PuzzleResult.deterministicID(
                 authorUserID: uid,
@@ -205,15 +250,26 @@ public final class HouseholdStore {
             do {
                 try await service.submit(real)
                 queue.remove(placeholder.id)
+                insertOptimistically(real)
+                submitted += 1
             } catch {
-                // Leave in queue; we'll try again next time. Don't fail the whole drain.
+                if firstError == nil {
+                    firstError = String(describing: error)
+                }
                 continue
             }
         }
-        await refresh()
+        lastDrainCount = submitted
+        lastDrainError = firstError
+        if submitted > 0 {
+            await refresh()
+        }
     }
 
     private func loadHousehold(_ id: Household.ID) async {
+        isLoadingHousehold = true
+        defer { isLoadingHousehold = false }
+
         let now = clock()
         let timeZone = households.first(where: { $0.id == id })?.timeZone ?? .current
         today = PuzzleDay(date: now, timeZone: timeZone)
@@ -228,7 +284,49 @@ public final class HouseholdStore {
             recentResults = Self.dedupe(try await recent)
         } catch {
             state = .error(String(describing: error))
+            return
         }
+        // Reactions are optional. If the Reaction record type isn't indexed in
+        // CloudKit yet (typical on a fresh container), or any other error
+        // happens, just show an empty list rather than failing the whole load.
+        reactions = (try? await service.reactions(in: id, since: windowStart)) ?? []
+        writeWidgetSnapshot()
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+    }
+
+    private func writeWidgetSnapshot() {
+        guard let widgetStore, let household = selectedHousehold else { return }
+        let entries = leaderboard.map { score in
+            WidgetSnapshot.Entry(
+                userID: score.userID,
+                displayName: displayName(for: score.userID),
+                avatarEmoji: avatarEmoji(for: score.userID),
+                combinedScore: score.combined,
+                gamesPlayed: score.perGame.count
+            )
+        }
+        let snap = WidgetSnapshot(
+            updatedAt: clock(),
+            householdName: household.name,
+            householdIcon: household.iconEmoji,
+            dayISO: today.isoString,
+            houseStreak: houseStreak,
+            entries: entries
+        )
+        widgetStore.write(snap)
+    }
+
+    public func reactions(for resultID: PuzzleResult.ID) -> [Reaction] {
+        reactions.filter { $0.targetResultID == resultID }
+    }
+
+    public func reactionSummary(for resultID: PuzzleResult.ID) -> [(emoji: String, count: Int)] {
+        let r = reactions(for: resultID)
+        let grouped = Dictionary(grouping: r, by: \.emoji)
+        return grouped.map { ($0.key, $0.value.count) }
+            .sorted { $0.count > $1.count }
     }
 
     /// Collapse duplicate (user, game, puzzleNumber, day) tuples — defends
@@ -294,11 +392,143 @@ public final class HouseholdStore {
             submittedAt: clock()
         )
         try await service.submit(result)
+        insertOptimistically(result)
         await refresh()
     }
 
-    public func react(to resultID: PuzzleResult.ID, emoji: String) async throws {
+    /// Insert a freshly-submitted result into the in-memory lists so the UI
+    /// updates immediately, without waiting for the CloudKit roundtrip.
+    /// Dedupe in `loadHousehold` handles any duplicate that comes back from
+    /// the subsequent refresh.
+    private func insertOptimistically(_ result: PuzzleResult) {
+        if result.puzzleDay == today {
+            todayResults = Self.dedupe(todayResults + [result])
+        }
+        let windowStart = today.advanced(by: -Self.streakWindowDays)
+        if result.puzzleDay >= windowStart {
+            recentResults = Self.dedupe(recentResults + [result])
+        }
+        writeWidgetSnapshot()
+    }
+
+    public func deleteResult(_ result: PuzzleResult) async throws {
         guard let householdID = selectedHouseholdID else { return }
+        try await service.deleteResult(result.id, in: householdID)
+        todayResults.removeAll { $0.id == result.id }
+        recentResults.removeAll { $0.id == result.id }
+    }
+
+    public func react(to resultID: PuzzleResult.ID, emoji: String) async throws {
+        guard let householdID = selectedHouseholdID, let uid = currentUserID else { return }
         try await service.react(to: resultID, in: householdID, emoji: emoji)
+        // Optimistic local update: replace any existing reaction by the same
+        // user on the same result so the UI reflects "one reaction per
+        // person" immediately.
+        reactions.removeAll { $0.targetResultID == resultID && $0.authorUserID == uid }
+        let id = Reaction.deterministicID(targetResultID: resultID, authorUserID: uid)
+        reactions.append(Reaction(id: id, targetResultID: resultID, authorUserID: uid, emoji: emoji))
+    }
+
+    public func clearMyReaction(on resultID: PuzzleResult.ID) async throws {
+        guard let householdID = selectedHouseholdID, let uid = currentUserID else { return }
+        try await service.clearReaction(to: resultID, in: householdID)
+        reactions.removeAll { $0.targetResultID == resultID && $0.authorUserID == uid }
+    }
+
+    public func myReaction(for resultID: PuzzleResult.ID) -> String? {
+        guard let uid = currentUserID else { return nil }
+        return reactions.first { $0.targetResultID == resultID && $0.authorUserID == uid }?.emoji
+    }
+
+    // MARK: - Remote notification handling
+
+    /// Called by the AppDelegate when a CloudKit silent push arrives. Refresh
+    /// data, then run two derived-state checks: "Mom solved before you" and
+    /// "Today's champion is decided".
+    public func handleRemoteCloudKitNotification() async {
+        await refresh()
+        await runSolvedBeforeYouCheck()
+        await runChampionCheck()
+    }
+
+    /// Fires a local notification the first time, per (household, game, day),
+    /// that another member submits a result the viewer hasn't matched yet.
+    private func runSolvedBeforeYouCheck() async {
+        guard preferences.notifySolvedBeforeYou,
+              let uid = currentUserID,
+              let householdID = selectedHouseholdID
+        else { return }
+        let myToday = Set(
+            todayResults.filter { $0.authorUserID == uid }
+                .map { "\($0.gameID)|\($0.puzzleNumber)" }
+        )
+        for result in todayResults where result.authorUserID != uid {
+            let key = "\(result.gameID)|\(result.puzzleNumber)"
+            if myToday.contains(key) { continue }
+            let dedupeKey = "solved-before-you|\(householdID)|\(key)|\(result.authorUserID)"
+            if recentlyFired(dedupeKey) { continue }
+            let body = "\(displayName(for: result.authorUserID)) just submitted \(Game.known(by: result.gameID)?.displayName ?? result.gameID) — your turn."
+            await notifications.scheduleOneShot(
+                identifier: dedupeKey,
+                title: "Solved before you",
+                body: body
+            )
+            markFired(dedupeKey)
+        }
+    }
+
+    /// Fires a "today's champion" notification once per (household, day),
+    /// when everyone in the active set has at least one submission today.
+    private func runChampionCheck() async {
+        guard preferences.notifyHouseholdChampion,
+              let householdID = selectedHouseholdID
+        else { return }
+        let active = StreakCalculator.activeMembers(
+            results: recentResults,
+            memberUserIDs: members.map(\.userID),
+            today: today
+        )
+        guard !active.isEmpty else { return }
+        let playedToday = Set(todayResults.map(\.authorUserID))
+        guard active.isSubset(of: playedToday) else { return }
+        guard let champion = leaderboard.first else { return }
+        let dedupeKey = "champion|\(householdID)|\(today.isoString)"
+        if recentlyFired(dedupeKey) { return }
+        let body = "🏆 \(displayName(for: champion.userID)) takes the crown — everyone's played."
+        await notifications.scheduleOneShot(
+            identifier: dedupeKey,
+            title: "Today's house champion",
+            body: body
+        )
+        markFired(dedupeKey)
+    }
+
+    // MARK: - Per-day notification dedupe
+
+    /// `UserDefaults`-backed sentinel so we don't re-fire the same alert.
+    private func recentlyFired(_ key: String) -> Bool {
+        UserDefaults.standard.string(forKey: "puzzle-house.fired.\(key)") == today.isoString
+    }
+    private func markFired(_ key: String) {
+        UserDefaults.standard.set(today.isoString, forKey: "puzzle-house.fired.\(key)")
+    }
+
+    public func updateMyMembership(
+        displayName: String,
+        avatarEmoji: String,
+        avatarPhotoData: Data?
+    ) async throws {
+        guard let uid = currentUserID,
+              let existing = members.first(where: { $0.userID == uid })
+        else { return }
+        var updated = existing
+        updated.displayName = displayName
+        updated.avatarEmoji = avatarEmoji
+        updated.avatarPhotoData = avatarPhotoData
+        try await service.updateMembership(updated)
+        // Reassign the entire array so the @Observable registrar definitely
+        // fires for any view tracking `members` (including ones that look up
+        // a member via `members.first(where:)` rather than indexing).
+        members = members.map { $0.userID == uid ? updated : $0 }
     }
 }

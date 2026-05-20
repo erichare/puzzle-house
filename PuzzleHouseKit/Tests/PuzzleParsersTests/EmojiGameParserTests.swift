@@ -27,4 +27,20 @@ final class EmojiGameParserTests: XCTestCase {
     func testDoesNotMatchWordle() {
         XCTAssertFalse(EmojiGameParser.canParse("Wordle 1,247 4/6"))
     }
+
+    func testMovesFormatSolvedWithLowerIsBetter() throws {
+        let text = "EmojiGame #20260519 moves=6"
+        XCTAssertTrue(EmojiGameParser.canParse(text))
+        let parsed = try EmojiGameParser.parse(text)
+        XCTAssertEqual(parsed.puzzleNumber, 20260519)
+        // Negated value so fewer moves yield higher goodness in the z-score.
+        XCTAssertEqual(parsed.rawScore, .custom(value: -6, solved: true))
+        XCTAssertEqual(parsed.metadata["moves"], "6")
+    }
+
+    func testFewerMovesYieldsHigherGoodness() throws {
+        let a = try EmojiGameParser.parse("EmojiGame #1 moves=3").rawScore.goodness
+        let b = try EmojiGameParser.parse("EmojiGame #1 moves=8").rawScore.goodness
+        XCTAssertGreaterThan(a, b)
+    }
 }

@@ -63,6 +63,9 @@ public enum RecordMapping {
         record["avatarEmoji"] = membership.avatarEmoji as CKRecordValue
         record["role"] = membership.role.rawValue as CKRecordValue
         record["joinedAt"] = membership.joinedAt as CKRecordValue
+        if let photo = membership.avatarPhotoData {
+            record["avatarPhotoData"] = photo as CKRecordValue
+        }
         return record
     }
 
@@ -83,6 +86,7 @@ public enum RecordMapping {
             userID: userID,
             displayName: displayName,
             avatarEmoji: avatar,
+            avatarPhotoData: record["avatarPhotoData"] as? Data,
             role: role,
             joinedAt: joinedAt
         )

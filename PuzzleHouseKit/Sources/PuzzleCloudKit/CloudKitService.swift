@@ -1,4 +1,5 @@
 import Foundation
+import os
 import CloudKit
 import PuzzleCore
 
@@ -17,6 +18,7 @@ public protocol CloudKitServicing: Sendable {
     func members(in householdID: Household.ID) async throws -> [Membership]
 
     func submit(_ result: PuzzleResult) async throws
+    func deleteResult(_ resultID: PuzzleResult.ID, in householdID: Household.ID) async throws
     func results(
         in householdID: Household.ID,
         on day: PuzzleDay
@@ -31,6 +33,16 @@ public protocol CloudKitServicing: Sendable {
         in householdID: Household.ID,
         emoji: String
     ) async throws
+    func clearReaction(
+        to resultID: PuzzleResult.ID,
+        in householdID: Household.ID
+    ) async throws
+    func reactions(
+        in householdID: Household.ID,
+        since day: PuzzleDay
+    ) async throws -> [Reaction]
+
+    func updateMembership(_ membership: Membership) async throws
 }
 
 public enum CloudKitServiceError: Error, Sendable {
@@ -50,8 +62,7 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
 
     /// Cache: which database does each household ID live in? Populated lazily
     /// from `households()`. Reset on sign-out.
-    private var scopeByHousehold: [Household.ID: CKDatabase.Scope] = [:]
-    private let scopeLock = NSLock()
+    private let scopeByHousehold = OSAllocatedUnfairLock<[Household.ID: CKDatabase.Scope]>(initialState: [:])
 
     public init(
         container: CKContainer = .default(),
@@ -150,8 +161,7 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
                 saving: [], deleting: [zoneID]
             )
         }
-        scopeLock.lock(); defer { scopeLock.unlock() }
-        scopeByHousehold.removeValue(forKey: id)
+        scopeByHousehold.withLock { $0.removeValue(forKey: id) }
     }
 
     public func shareURL(for household: Household) async throws -> URL {
@@ -192,6 +202,12 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
             }
             throw error
         }
+    }
+
+    public func deleteResult(_ resultID: PuzzleResult.ID, in householdID: Household.ID) async throws {
+        let (database, zoneID) = try resolve(householdID)
+        let recordID = CKRecord.ID(recordName: resultID, zoneID: zoneID)
+        let _ = try await database.modifyRecords(saving: [], deleting: [recordID])
     }
 
     public func results(
@@ -239,13 +255,58 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
     ) async throws {
         let userID = try await currentUserRecordName()
         let (database, zoneID) = try resolve(householdID)
+        // Deterministic ID per (target, author) only — re-reacting with a
+        // different emoji overwrites the same record, enforcing "one
+        // reaction per person per result".
+        let reactionID = Reaction.deterministicID(targetResultID: resultID, authorUserID: userID)
         let reaction = Reaction(
+            id: reactionID,
             targetResultID: resultID,
             authorUserID: userID,
             emoji: emoji
         )
         let record = RecordMapping.reactionRecord(from: reaction, zoneID: zoneID)
-        let _ = try await database.modifyRecords(saving: [record], deleting: [])
+        let _ = try await database.modifyRecords(
+            saving: [record], deleting: [], savePolicy: .changedKeys
+        )
+    }
+
+    public func clearReaction(
+        to resultID: PuzzleResult.ID,
+        in householdID: Household.ID
+    ) async throws {
+        let userID = try await currentUserRecordName()
+        let (_, zoneID) = try resolve(householdID)
+        let reactionID = Reaction.deterministicID(targetResultID: resultID, authorUserID: userID)
+        let recordID = CKRecord.ID(recordName: reactionID, zoneID: zoneID)
+        let database: CKDatabase = (scope(for: householdID) == .shared)
+            ? container.sharedCloudDatabase
+            : container.privateCloudDatabase
+        let _ = try await database.modifyRecords(saving: [], deleting: [recordID])
+    }
+
+    public func reactions(
+        in householdID: Household.ID,
+        since day: PuzzleDay
+    ) async throws -> [Reaction] {
+        let (database, zoneID) = try resolve(householdID)
+        // Reactions don't have a puzzleDay — filter by createdAt instead.
+        let cutoff = day.startOfDay(in: TimeZone(identifier: "UTC") ?? .gmt)
+        let predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
+        let query = CKQuery(recordType: RecordType.reaction, predicate: predicate)
+        let (matches, _) = try await database.records(matching: query, inZoneWith: zoneID)
+        return matches.compactMap { _, r in
+            guard case .success(let record) = r else { return nil }
+            return try? RecordMapping.reaction(from: record)
+        }
+    }
+
+    public func updateMembership(_ membership: Membership) async throws {
+        let (database, zoneID) = try resolve(membership.householdID)
+        let record = RecordMapping.membershipRecord(from: membership, zoneID: zoneID)
+        let _ = try await database.modifyRecords(
+            saving: [record], deleting: [], savePolicy: .changedKeys
+        )
     }
 
     // MARK: - Internals
@@ -276,12 +337,10 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
     }
 
     private func rememberScope(_ householdID: Household.ID, _ scope: CKDatabase.Scope) {
-        scopeLock.lock(); defer { scopeLock.unlock() }
-        scopeByHousehold[householdID] = scope
+        scopeByHousehold.withLock { $0[householdID] = scope }
     }
 
     private func scope(for householdID: Household.ID) -> CKDatabase.Scope? {
-        scopeLock.lock(); defer { scopeLock.unlock() }
-        return scopeByHousehold[householdID]
+        scopeByHousehold.withLock { $0[householdID] }
     }
 }

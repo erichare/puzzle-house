@@ -29,6 +29,7 @@ final class FailingFakeService: CloudKitServicing, @unchecked Sendable {
     func submit(_ result: PuzzleResult) async throws {
         if shouldFailSubmit { throw CloudKitServiceError.accountUnavailable }
     }
+    func deleteResult(_ resultID: PuzzleResult.ID, in householdID: Household.ID) async throws {}
     func results(in householdID: Household.ID, on day: PuzzleDay) async throws -> [PuzzleResult] {
         []
     }
@@ -36,4 +37,9 @@ final class FailingFakeService: CloudKitServicing, @unchecked Sendable {
         []
     }
     func react(to resultID: PuzzleResult.ID, in householdID: Household.ID, emoji: String) async throws {}
+    func clearReaction(to resultID: PuzzleResult.ID, in householdID: Household.ID) async throws {}
+    func reactions(in householdID: Household.ID, since day: PuzzleDay) async throws -> [Reaction] { [] }
+    func updateMembership(_ membership: Membership) async throws {
+        throw CloudKitServiceError.accountUnavailable
+    }
 }

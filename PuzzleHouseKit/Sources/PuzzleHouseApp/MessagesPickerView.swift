@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 import PuzzleCore
 import PuzzleParsers
 
@@ -39,6 +42,8 @@ public struct MessagesPickerView: View {
         .task { if store.state == .idle { await store.bootstrap() } }
     }
 
+    static let quickReactions = ["🔥", "🎉", "👏", "🤯", "😂", "❤️"]
+
     private var list: some View {
         List {
             Section {
@@ -49,10 +54,56 @@ public struct MessagesPickerView: View {
                         row(result)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        if result.authorUserID != store.currentUserID {
+                            reactionMenu(for: result)
+                        } else {
+                            Text("Your own result")
+                                .foregroundStyle(.secondary)
+                        }
+                        Divider()
+                        Button {
+                            onSend(result)
+                        } label: {
+                            Label("Send to chat", systemImage: "paperplane")
+                        }
+                    }
                 }
             } header: {
                 Text(headerText)
+            } footer: {
+                Text("Long-press a result to react with an emoji.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func reactionMenu(for result: PuzzleResult) -> some View {
+        Menu {
+            ForEach(Self.quickReactions, id: \.self) { emoji in
+                Button {
+                    Task {
+                        #if canImport(UIKit)
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        #endif
+                        try? await store.react(to: result.id, emoji: emoji)
+                    }
+                } label: {
+                    Text("\(emoji)  React")
+                }
+            }
+            if store.myReaction(for: result.id) != nil {
+                Divider()
+                Button(role: .destructive) {
+                    Task { try? await store.clearMyReaction(on: result.id) }
+                } label: {
+                    Label("Clear my reaction", systemImage: "xmark.circle")
+                }
+            }
+        } label: {
+            Label("React", systemImage: "face.smiling")
         }
     }
 

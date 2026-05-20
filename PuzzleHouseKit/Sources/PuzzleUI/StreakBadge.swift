@@ -15,8 +15,8 @@ public struct StreakBadge: View {
             Text("\(count)").font(.headline).monospacedDigit()
             Text(label).font(.caption).foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(PuzzleTheme.secondaryFill, in: Capsule())
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .glassEffect(.regular.tint(.orange.opacity(0.45)), in: Capsule())
     }
 }

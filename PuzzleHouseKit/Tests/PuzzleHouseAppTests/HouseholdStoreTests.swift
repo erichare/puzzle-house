@@ -9,7 +9,7 @@ final class HouseholdStoreTests: XCTestCase {
 
     private let today = PuzzleDay(year: 2026, month: 5, day: 19)
 
-    nonisolated private func fixedNow() -> Date {
+    nonisolated static func fixedNow() -> Date {
         var c = DateComponents()
         c.year = 2026; c.month = 5; c.day = 19; c.hour = 12
         c.timeZone = .current
@@ -51,7 +51,7 @@ final class HouseholdStoreTests: XCTestCase {
                 ],
             ]
         )
-        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { self.fixedNow() })
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
         await store.bootstrap()
         await store.switchHousehold("h2")
         XCTAssertEqual(store.selectedHouseholdID, "h2")
@@ -64,7 +64,7 @@ final class HouseholdStoreTests: XCTestCase {
             households: [household("h1")],
             members: ["h1": [Membership(householdID: "h1", userID: "me", displayName: "Me", role: .owner)]]
         )
-        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { self.fixedNow() })
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
         await store.bootstrap()
 
         let parsed = ParserRegistry.parse("Wordle 1,247 3/6\n\n🟨🟨🟨⬛⬛\n🟩🟩🟩⬛⬛\n🟩🟩🟩🟩🟩")!
@@ -85,7 +85,7 @@ final class HouseholdStoreTests: XCTestCase {
                 ],
             ]
         )
-        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { self.fixedNow() })
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
         await store.bootstrap()
 
         // Mom beats me at Wordle.
@@ -116,7 +116,7 @@ final class HouseholdStoreTests: XCTestCase {
                 ],
             ]
         )
-        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { self.fixedNow() })
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
         await store.bootstrap()
 
         // Both members played today, yesterday, and the day before.
@@ -148,7 +148,7 @@ final class HouseholdStoreTests: XCTestCase {
             households: [household("h1")],
             members: ["h1": [Membership(householdID: "h1", userID: "me", displayName: "Me", role: .owner)]]
         )
-        let store = HouseholdStore(service: service, queue: queue, notifications: FakeNotificationService(), now: { self.fixedNow() })
+        let store = HouseholdStore(service: service, queue: queue, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
         await store.bootstrap()
 
         // Share Extension dropped a placeholder with "pending" household/author.
@@ -183,7 +183,7 @@ final class HouseholdStoreTests: XCTestCase {
         let queue = OfflineWriteQueue(container: AppGroupContainer(baseURL: tmpDir))
 
         let service = FailingFakeService()
-        let store = HouseholdStore(service: service, queue: queue, notifications: FakeNotificationService(), now: { self.fixedNow() })
+        let store = HouseholdStore(service: service, queue: queue, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
         await store.bootstrap()
         // bootstrap will error because of FailingFakeService, but set selection from injected state
         service.households = [household("h1")]
@@ -201,6 +201,56 @@ final class HouseholdStoreTests: XCTestCase {
         XCTAssertEqual(try queue.count(), 1, "Failed submit should keep item in queue")
     }
 
+    func testReactionReplacesOnSecondTap() async throws {
+        let service = FakeCloudKitService(
+            households: [household("h1")],
+            members: ["h1": [Membership(householdID: "h1", userID: "me", displayName: "Me", role: .owner)]]
+        )
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
+        await store.bootstrap()
+        try await store.react(to: "result-1", emoji: "🔥")
+        XCTAssertEqual(store.myReaction(for: "result-1"), "🔥")
+        try await store.react(to: "result-1", emoji: "🎉")
+        XCTAssertEqual(store.myReaction(for: "result-1"), "🎉")
+        XCTAssertEqual(store.reactions(for: "result-1").count, 1)
+    }
+
+    func testClearReactionRemovesIt() async throws {
+        let service = FakeCloudKitService(
+            households: [household("h1")],
+            members: ["h1": [Membership(householdID: "h1", userID: "me", displayName: "Me", role: .owner)]]
+        )
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
+        await store.bootstrap()
+        try await store.react(to: "result-1", emoji: "🔥")
+        try await store.clearMyReaction(on: "result-1")
+        XCTAssertNil(store.myReaction(for: "result-1"))
+    }
+
+    func testDeleteResultRemovesFromCloudAndLocal() async throws {
+        let service = FakeCloudKitService(
+            households: [household("h1")],
+            members: ["h1": [Membership(householdID: "h1", userID: "me", displayName: "Me", role: .owner)]]
+        )
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
+        await store.bootstrap()
+
+        let result = PuzzleResult(
+            householdID: "h1", authorUserID: "me",
+            gameID: "wordle", puzzleNumber: 1247, puzzleDay: store.today,
+            rawScore: .guesses(used: 3, outOf: 6, solved: true),
+            rawPayload: ""
+        )
+        try await service.submit(result)
+        await store.refresh()
+        XCTAssertEqual(store.todayResults.count, 1)
+
+        try await store.deleteResult(result)
+        XCTAssertEqual(store.todayResults.count, 0)
+        let cloudRemaining = try await service.results(in: "h1", on: store.today)
+        XCTAssertEqual(cloudRemaining.count, 0)
+    }
+
     func testSpoilerMapHidesUntilSubmit() async throws {
         let service = FakeCloudKitService(
             households: [household("h1")],
@@ -211,7 +261,7 @@ final class HouseholdStoreTests: XCTestCase {
                 ],
             ]
         )
-        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { self.fixedNow() })
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
         await store.bootstrap()
 
         try await service.submit(PuzzleResult(

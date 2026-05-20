@@ -63,6 +63,14 @@ final class FakeCloudKitService: CloudKitServicing, @unchecked Sendable {
         resultsByDay[result.householdID, default: [:]][result.puzzleDay, default: []].append(result)
     }
 
+    func deleteResult(_ resultID: PuzzleResult.ID, in householdID: Household.ID) async throws {
+        guard var byDay = resultsByDay[householdID] else { return }
+        for (day, results) in byDay {
+            byDay[day] = results.filter { $0.id != resultID }
+        }
+        resultsByDay[householdID] = byDay
+    }
+
     func results(in householdID: Household.ID, on day: PuzzleDay) async throws -> [PuzzleResult] {
         resultsByDay[householdID]?[day] ?? []
     }
@@ -73,6 +81,26 @@ final class FakeCloudKitService: CloudKitServicing, @unchecked Sendable {
     }
 
     func react(to resultID: PuzzleResult.ID, in householdID: Household.ID, emoji: String) async throws {
-        reactions.append(Reaction(targetResultID: resultID, authorUserID: userID, emoji: emoji))
+        let id = Reaction.deterministicID(targetResultID: resultID, authorUserID: userID)
+        reactions.removeAll { $0.id == id }
+        reactions.append(Reaction(id: id, targetResultID: resultID, authorUserID: userID, emoji: emoji))
+    }
+
+    func clearReaction(to resultID: PuzzleResult.ID, in householdID: Household.ID) async throws {
+        let id = Reaction.deterministicID(targetResultID: resultID, authorUserID: userID)
+        reactions.removeAll { $0.id == id }
+    }
+
+    func reactions(in householdID: Household.ID, since day: PuzzleDay) async throws -> [Reaction] {
+        reactions
+    }
+
+    func updateMembership(_ membership: Membership) async throws {
+        for (hid, mems) in members {
+            if let idx = mems.firstIndex(where: { $0.id == membership.id }) {
+                members[hid]?[idx] = membership
+                return
+            }
+        }
     }
 }

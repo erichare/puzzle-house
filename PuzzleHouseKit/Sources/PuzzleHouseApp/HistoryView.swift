@@ -47,7 +47,8 @@ public struct HistoryView: View {
                                 Avatar(
                                     emoji: store.avatarEmoji(for: score.userID),
                                     displayName: store.displayName(for: score.userID),
-                                    size: 24
+                                    size: 24,
+                                    photoData: store.avatarPhotoData(for: score.userID)
                                 )
                                 Text(store.displayName(for: score.userID))
                                 Spacer()
@@ -68,6 +69,15 @@ public struct HistoryView: View {
                                     Spacer()
                                     Text(store.displayName(for: result.authorUserID))
                                         .font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                if result.authorUserID == store.currentUserID {
+                                    Button(role: .destructive) {
+                                        Task { try? await store.deleteResult(result) }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
                             }
                         }

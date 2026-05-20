@@ -9,6 +9,7 @@ public struct ResultCard: View {
     public let gameEmoji: String
     public let accentColor: Color
     public let hideGrid: Bool
+    public let reactionSummary: [(emoji: String, count: Int)]
 
     public init(
         result: PuzzleResult,
@@ -17,7 +18,8 @@ public struct ResultCard: View {
         gameDisplayName: String,
         gameEmoji: String,
         accentColor: Color = .accentColor,
-        hideGrid: Bool
+        hideGrid: Bool,
+        reactionSummary: [(emoji: String, count: Int)] = []
     ) {
         self.result = result
         self.authorName = authorName
@@ -26,6 +28,7 @@ public struct ResultCard: View {
         self.gameEmoji = gameEmoji
         self.accentColor = accentColor
         self.hideGrid = hideGrid
+        self.reactionSummary = reactionSummary
     }
 
     public var body: some View {
@@ -43,13 +46,14 @@ public struct ResultCard: View {
             }
             .padding(PuzzleTheme.cardPadding)
         }
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius))
+        .glassEffect(
+            .regular,
+            in: RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius)
-                .strokeBorder(accentColor.opacity(0.18), lineWidth: 0.5)
+                .strokeBorder(accentColor.opacity(0.22), lineWidth: 0.5)
         )
-        .shadow(color: Color.black.opacity(0.06), radius: 6, x: 0, y: 2)
     }
 
     private var header: some View {
@@ -60,8 +64,8 @@ public struct ResultCard: View {
                 HStack(spacing: 4) {
                     Text(gameEmoji)
                     Text(gameDisplayName)
-                        .foregroundStyle(accentColor.opacity(0.85))
                         .fontWeight(.medium)
+                        .foregroundStyle(.primary)
                     Text("#\(result.puzzleNumber)")
                         .foregroundStyle(.secondary)
                 }
@@ -75,13 +79,31 @@ public struct ResultCard: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 8) {
             Text(scoreSummary)
                 .font(.callout).fontWeight(.semibold)
+                .foregroundStyle(.primary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(accentColor.opacity(0.18), in: Capsule())
-                .foregroundStyle(accentColor)
+                .background(accentColor.opacity(0.22), in: Capsule())
+                .overlay(
+                    Capsule().strokeBorder(accentColor.opacity(0.55), lineWidth: 0.5)
+                )
+            if !reactionSummary.isEmpty {
+                HStack(spacing: 2) {
+                    ForEach(reactionSummary.prefix(3), id: \.emoji) { pair in
+                        Text(pair.emoji)
+                    }
+                    if reactionSummary.count > 0 {
+                        Text("\(reactionSummary.reduce(0) { $0 + $1.count })")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.secondary.opacity(0.10), in: Capsule())
+            }
             Spacer()
             Text(result.submittedAt, style: .time)
                 .font(.caption)

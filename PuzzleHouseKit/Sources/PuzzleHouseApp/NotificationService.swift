@@ -8,6 +8,7 @@ public protocol NotificationServicing: Sendable {
 
     func scheduleDailyReminder(hour: Int, minute: Int) async throws
     func scheduleWeeklyRecap(weekday: Int, hour: Int) async throws
+    func scheduleOneShot(identifier: String, title: String, body: String) async
 
     func cancelAll() async
     func cancel(identifier: NotificationIdentifier) async
@@ -78,6 +79,19 @@ public final class NotificationService: NotificationServicing, @unchecked Sendab
             trigger: trigger
         )
         try await center.add(request)
+    }
+
+    public func scheduleOneShot(identifier: String, title: String, body: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        // Fire as soon as iOS allows — ~1 s delay is enough to land while
+        // the user is still in the app.
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        try? await center.add(request)
     }
 
     public func cancelAll() async {

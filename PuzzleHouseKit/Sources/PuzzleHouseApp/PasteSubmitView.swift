@@ -14,6 +14,7 @@ public struct PasteSubmitView: View {
     @State private var isSubmitting = false
     @State private var pickerItem: PhotosPickerItem?
     @State private var isScanning = false
+    @State private var showingScanSheet = false
 
     let onSubmit: @MainActor (ParsedResult, String) async throws -> Void
     @Environment(\.dismiss) private var dismiss
@@ -46,7 +47,13 @@ public struct PasteSubmitView: View {
                         guard let new else { return }
                         Task { await scan(item: new) }
                     }
-                    Text("Best for Apple News' Emoji Game — it has no Share Sheet.")
+                    Button {
+                        showingScanSheet = true
+                    } label: {
+                        Label("Scan recent screenshots", systemImage: "sparkles.rectangle.stack")
+                    }
+                    .disabled(isSubmitting || isScanning)
+                    Text("Best for Apple News' Emoji Game — it has no Share Sheet. \u{201C}Scan recent\u{201D} asks for Photos access and tries the last 20 screenshots automatically.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if let parsed {
@@ -69,6 +76,11 @@ public struct PasteSubmitView: View {
                 }
             }
             .interactiveDismissDisabled(isSubmitting || isScanning)
+            .sheet(isPresented: $showingScanSheet) {
+                ScanRecentScreenshotsSheet { parsed, raw in
+                    try await onSubmit(parsed, raw)
+                }
+            }
             .navigationTitle("Add Result")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -99,8 +111,14 @@ public struct PasteSubmitView: View {
         defer { isSubmitting = false }
         do {
             try await onSubmit(parsed, text)
+            #if canImport(UIKit)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            #endif
             dismiss()
         } catch {
+            #if canImport(UIKit)
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            #endif
             self.error = String(describing: error)
         }
     }

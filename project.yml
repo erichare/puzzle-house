@@ -2,8 +2,8 @@ name: PuzzleHouse
 options:
   bundleIdPrefix: com.jestats.PuzzleHouse
   deploymentTarget:
-    iOS: "17.0"
-    macOS: "14.0"
+    iOS: "26.0"
+    macOS: "26.0"
   createIntermediateGroups: true
   groupSortPosition: top
   generateEmptyDirectories: true
@@ -23,7 +23,7 @@ targets:
   PuzzleHouse:
     type: application
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.0"
     sources:
       - path: PuzzleHouse
     dependencies:
@@ -36,6 +36,10 @@ targets:
         copyPhase:
           name: Embed App Extensions
       - target: PuzzleHouseMessages
+        embed: true
+        copyPhase:
+          name: Embed App Extensions
+      - target: PuzzleHouseWidget
         embed: true
         copyPhase:
           name: Embed App Extensions
@@ -55,6 +59,8 @@ targets:
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_CFBundleDisplayName: Puzzle House
         INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Puzzle House scans recent screenshots in your Photos to find puzzle results so you don't have to copy and paste."
+        INFOPLIST_KEY_UIBackgroundModes: "remote-notification"
         GENERATE_INFOPLIST_FILE: YES
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: "0.1.0"
@@ -62,7 +68,7 @@ targets:
   PuzzleHouseShareExtension:
     type: app-extension
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.0"
     sources:
       - path: PuzzleHouseShareExtension
     dependencies:
@@ -83,7 +89,7 @@ targets:
   PuzzleHouseMessages:
     type: app-extension.messages
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.0"
     sources:
       - path: PuzzleHouseMessages
     dependencies:
@@ -101,6 +107,25 @@ targets:
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: "0.1.0"
 
+  PuzzleHouseWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: PuzzleHouseWidget
+    dependencies:
+      - package: PuzzleHouseKit
+        product: PuzzleCloudKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jestats.PuzzleHouse.Widget
+        PRODUCT_NAME: PuzzleHouseWidget
+        INFOPLIST_FILE: PuzzleHouseWidget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: PuzzleHouseWidget/PuzzleHouseWidget.entitlements
+        SKIP_INSTALL: YES
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "0.1.0"
+
 schemes:
   PuzzleHouse:
     build:
@@ -108,6 +133,7 @@ schemes:
         PuzzleHouse: all
         PuzzleHouseShareExtension: all
         PuzzleHouseMessages: all
+        PuzzleHouseWidget: all
     run:
       config: Debug
     test:

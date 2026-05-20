@@ -8,6 +8,9 @@ public struct TodayView: View {
     @Bindable var store: HouseholdStore
     @State private var showingPaste = false
     @State private var openResult: PuzzleResult?
+    @State private var openMember: String?
+    @State private var showingSwitcher = false
+    @Environment(\.colorScheme) private var colorScheme
 
     public init(store: HouseholdStore) {
         self.store = store
@@ -16,10 +19,13 @@ public struct TodayView: View {
     public var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-                    leaderboard
-                    resultCards
+                GlassEffectContainer(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        header
+                        ChecklistSection(store: store)
+                        leaderboard
+                        resultCards
+                    }
                 }
                 .padding()
             }
@@ -42,16 +48,29 @@ public struct TodayView: View {
             .sheet(item: $openResult) { result in
                 ResultDetailSheet(store: store, result: result)
             }
+            .sheet(item: Binding(
+                get: { openMember.map(MemberID.init) },
+                set: { openMember = $0?.id }
+            )) { picked in
+                MemberDetailSheet(store: store, userID: picked.id)
+            }
+            .sheet(isPresented: $showingSwitcher) {
+                HouseSwitcherView(store: store)
+            }
             .refreshable { await store.refresh() }
         }
     }
 
+    private struct MemberID: Identifiable { let id: String }
+
     private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 1.00, green: 0.97, blue: 0.93),
-                Color(red: 1.00, green: 0.93, blue: 0.86),
-            ],
+        let isDark = colorScheme == .dark
+        return LinearGradient(
+            colors: isDark
+                ? [Color(red: 0.10, green: 0.07, blue: 0.05),
+                   Color(red: 0.16, green: 0.10, blue: 0.06)]
+                : [Color(red: 1.00, green: 0.97, blue: 0.93),
+                   Color(red: 1.00, green: 0.91, blue: 0.83)],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -59,14 +78,25 @@ public struct TodayView: View {
 
     private var header: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                if let household = store.selectedHousehold {
-                    Text("\(household.iconEmoji) \(household.name)")
-                        .font(.title2).bold()
+            Button {
+                showingSwitcher = true
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    if let household = store.selectedHousehold {
+                        HStack(spacing: 6) {
+                            Text("\(household.iconEmoji) \(household.name)")
+                                .font(.title2).bold()
+                                .foregroundStyle(.primary)
+                            Image(systemName: "chevron.down")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Text(store.today.isoString)
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                Text(store.today.isoString)
-                    .font(.caption).foregroundStyle(.secondary)
             }
+            .buttonStyle(.plain)
             Spacer()
             if store.houseStreak > 0 {
                 StreakBadge(count: store.houseStreak, label: "house streak")
@@ -84,12 +114,17 @@ public struct TodayView: View {
                 emptyLeaderboard
             } else {
                 ForEach(Array(board.enumerated()), id: \.element.userID) { idx, score in
-                    leaderboardRow(idx: idx, score: score)
+                    Button {
+                        openMember = score.userID
+                    } label: {
+                        leaderboardRow(idx: idx, score: score)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
         .padding(PuzzleTheme.cardPadding)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius))
         .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
     }
 
@@ -111,7 +146,8 @@ public struct TodayView: View {
             Avatar(
                 emoji: store.avatarEmoji(for: score.userID),
                 displayName: store.displayName(for: score.userID),
-                size: 32
+                size: 32,
+                photoData: store.avatarPhotoData(for: score.userID)
             )
             VStack(alignment: .leading, spacing: 2) {
                 Text(store.displayName(for: score.userID)).font(.body)
@@ -126,13 +162,19 @@ public struct TodayView: View {
             }
             Spacer()
             Text(String(format: "%+.2f", score.combined))
-                .font(.body.monospacedDigit().weight(.medium))
-                .foregroundStyle(idx == 0 ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .font(.body.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.primary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(
-                    (idx == 0 ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.10)),
+                    (idx == 0 ? Color.accentColor.opacity(0.22) : Color.secondary.opacity(0.12)),
                     in: Capsule()
+                )
+                .overlay(
+                    Capsule().strokeBorder(
+                        idx == 0 ? Color.accentColor.opacity(0.45) : Color.clear,
+                        lineWidth: 0.5
+                    )
                 )
         }
     }
@@ -166,13 +208,19 @@ public struct TodayView: View {
                             gameDisplayName: game?.displayName ?? result.gameID,
                             gameEmoji: game?.emoji ?? "🧩",
                             accentColor: game?.color ?? .accentColor,
-                            hideGrid: (visibility[result.id] ?? .full) == .hidden
+                            hideGrid: (visibility[result.id] ?? .full) == .hidden,
+                            reactionSummary: store.reactionSummary(for: result.id)
                         )
                     }
                     .buttonStyle(.plain)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.92).combined(with: .opacity),
+                        removal: .opacity
+                    ))
                 }
             }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: store.todayResults.map(\.id))
     }
 
     private var emptyResults: some View {
@@ -187,6 +235,6 @@ public struct TodayView: View {
         }
         .padding(.vertical, 30)
         .frame(maxWidth: .infinity)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius))
     }
 }

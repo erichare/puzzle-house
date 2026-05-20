@@ -22,6 +22,9 @@ final class FakeNotificationService: NotificationServicing, @unchecked Sendable 
     func scheduleWeeklyRecap(weekday: Int, hour: Int) async throws {
         scheduledWeekly = (weekday, hour)
     }
+    func scheduleOneShot(identifier: String, title: String, body: String) async {
+        // No-op for tests; we don't actually deliver notifications.
+    }
     func cancelAll() async {
         cancelAllCount += 1
         scheduledReminder = nil

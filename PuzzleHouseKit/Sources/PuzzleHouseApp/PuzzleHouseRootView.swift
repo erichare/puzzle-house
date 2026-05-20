@@ -31,6 +31,9 @@ public struct PuzzleHouseRootView: View {
             TodayView(store: store)
                 .tabItem { Label("Today", systemImage: "calendar.circle") }
 
+            StatsView(store: store)
+                .tabItem { Label("Stats", systemImage: "chart.bar.xaxis") }
+
             HistoryView(store: store)
                 .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
 

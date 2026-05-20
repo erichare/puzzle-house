@@ -11,10 +11,17 @@ public struct ResultDetailSheet: View {
     @Bindable var store: HouseholdStore
     let result: PuzzleResult
     @Environment(\.dismiss) private var dismiss
+    @State private var confirmingDelete = false
+    @State private var deleting = false
+    @State private var deleteError: String?
 
     public init(store: HouseholdStore, result: PuzzleResult) {
         self.store = store
         self.result = result
+    }
+
+    private var canDelete: Bool {
+        result.authorUserID == store.currentUserID
     }
 
     public var body: some View {
@@ -31,7 +38,9 @@ public struct ResultDetailSheet: View {
                     } else {
                         gridBlock
                         scoreBlock(streak: streak)
+                        reactionsBlock
                         rawPayloadBlock
+                        if canDelete { deleteButton }
                     }
                 }
                 .padding()
@@ -45,6 +54,62 @@ public struct ResultDetailSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .confirmationDialog(
+                "Delete this result?",
+                isPresented: $confirmingDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    Task { await delete() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Removes it from iCloud for everyone in the household. Can't be undone.")
+            }
+            .alert(
+                "Couldn't delete",
+                isPresented: Binding(
+                    get: { deleteError != nil },
+                    set: { if !$0 { deleteError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteError ?? "")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var deleteButton: some View {
+        Button(role: .destructive) {
+            confirmingDelete = true
+        } label: {
+            if deleting {
+                HStack { ProgressView(); Text("Deleting\u{2026}") }
+                    .frame(maxWidth: .infinity)
+            } else {
+                Label("Delete this result", systemImage: "trash")
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .buttonStyle(.glass)
+        .controlSize(.large)
+        .tint(.red)
+        .disabled(deleting)
+    }
+
+    private func delete() async {
+        deleting = true
+        defer { deleting = false }
+        do {
+            try await store.deleteResult(result)
+            #if canImport(UIKit)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            #endif
+            dismiss()
+        } catch {
+            deleteError = String(describing: error)
         }
     }
 
@@ -54,7 +119,8 @@ public struct ResultDetailSheet: View {
             Avatar(
                 emoji: store.avatarEmoji(for: result.authorUserID),
                 displayName: store.displayName(for: result.authorUserID),
-                size: 56
+                size: 56,
+                photoData: store.avatarPhotoData(for: result.authorUserID)
             )
             VStack(alignment: .leading, spacing: 4) {
                 Text(store.displayName(for: result.authorUserID))
@@ -89,7 +155,7 @@ public struct ResultDetailSheet: View {
                 .lineSpacing(2)
                 .padding(20)
                 .frame(maxWidth: .infinity)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
         }
     }
 
@@ -107,7 +173,81 @@ public struct ResultDetailSheet: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    @ViewBuilder
+    private var reactionsBlock: some View {
+        let summary = store.reactionSummary(for: result.id)
+        let myEmoji = store.myReaction(for: result.id)
+        let isOwn = result.authorUserID == store.currentUserID
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Reactions")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            if !summary.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(summary, id: \.emoji) { pair in
+                        HStack(spacing: 4) {
+                            Text(pair.emoji)
+                            Text("\(pair.count)")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.accentColor.opacity(0.12), in: Capsule())
+                    }
+                }
+            } else if isOwn {
+                Text("Others' reactions will show up here.")
+                    .font(.caption).foregroundStyle(.tertiary)
+            }
+            if !isOwn {
+                GlassEffectContainer(spacing: 12) {
+                    HStack(spacing: 12) {
+                        ForEach(Self.quickReactions, id: \.self) { emoji in
+                            reactionButton(emoji: emoji, isSelected: myEmoji == emoji)
+                        }
+                    }
+                }
+                if myEmoji != nil {
+                    Text("Tap your reaction again to remove it.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    static let quickReactions = ["🔥", "🎉", "👏", "🤯", "😂", "❤️"]
+
+    @ViewBuilder
+    private func reactionButton(emoji: String, isSelected: Bool) -> some View {
+        Button {
+            Task {
+                #if canImport(UIKit)
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                #endif
+                if isSelected {
+                    try? await store.clearMyReaction(on: result.id)
+                } else {
+                    try? await store.react(to: result.id, emoji: emoji)
+                }
+            }
+        } label: {
+            Text(emoji).font(.title2)
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(
+            isSelected
+                ? .regular.tint(.accentColor.opacity(0.55)).interactive()
+                : .regular.interactive(),
+            in: Circle()
+        )
     }
 
     @ViewBuilder
@@ -128,7 +268,7 @@ public struct ResultDetailSheet: View {
             .padding(.top, 8)
         }
         .padding(16)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var scoreSummary: String {

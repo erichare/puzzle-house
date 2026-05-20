@@ -64,21 +64,26 @@ public struct HouseSwitcherView: View {
     private func row(_ household: Household) -> some View {
         let isSelected = household.id == store.selectedHouseholdID
         let isOwner = household.createdByUserID == store.currentUserID
-        Button {
-            Task { await store.switchHousehold(household.id) }
-        } label: {
-            HStack {
-                Text(household.iconEmoji).font(.title3)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(household.name)
-                    Text(isOwner ? "Owner" : "Member")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark").foregroundStyle(.tint)
-                }
+        HStack {
+            Text(household.iconEmoji).font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(household.name)
+                Text(isOwner ? "Owner" : "Member")
+                    .font(.caption).foregroundStyle(.secondary)
             }
+            Spacer()
+            if isSelected && store.isLoadingHousehold {
+                ProgressView().controlSize(.small)
+            } else if isSelected {
+                Image(systemName: "checkmark").foregroundStyle(.tint)
+            }
+        }
+        .contentShape(.rect)
+        .onTapGesture {
+            #if canImport(UIKit)
+            UISelectionFeedbackGenerator().selectionChanged()
+            #endif
+            Task { await store.switchHousehold(household.id) }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {

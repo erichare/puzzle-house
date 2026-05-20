@@ -48,6 +48,20 @@
                ReferencedContainer = "container:PuzzleHouse.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E579926AB1750D1E507988C3"
+               BuildableName = "PuzzleHouseWidget.appex"
+               BlueprintName = "PuzzleHouseWidget"
+               ReferencedContainer = "container:PuzzleHouse.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction

@@ -38,6 +38,22 @@ setup and real-device verification).
   `EmojiGameParser`; `PhotosPicker` entry in `PasteSubmitView` so a screenshot
   becomes a parsed result
 
+**Week 4+ — social, stats, widget**
+- Reactions: tap 🔥/🎉/👏/🤯/😂/❤️ on any result; aggregated counts shown
+  as chips on cards and a per-emoji breakdown in the detail sheet
+- Edit your own name + avatar emoji *per household* (Settings → You)
+- New **Stats** tab — last 7 days at a glance: days played, championships
+  won, longest streak, total solved per member
+- **WidgetKit** home-screen widget (small + medium) showing today's
+  household leaderboard and the 🔥 house streak. Updated whenever the main
+  app syncs CloudKit (and reloaded hourly as a backstop)
+- Haptics on submit (success/error), entrance animations on new result cards
+- Tap any card → ResultDetailSheet with grid, score block, reactions strip,
+  and an expandable raw share-text section with copy-to-clipboard
+- Swipe a house row for Invite (CKShare URL via system share sheet),
+  Edit (rename + emoji), Delete (with confirmation copy that adapts to
+  owner vs participant)
+
 **Week 4 — notifications + settings**
 - `NotificationService` (local notifications) — daily reminder and weekly
   recap, schedulable from settings
@@ -48,7 +64,7 @@ setup and real-device verification).
 - Real `HistoryView` grouping the rolling 14-day window by day with
   per-day leaderboard + expandable grids
 
-**Test suite: 68 unit tests, ~80 ms.**
+**Test suite: 71 unit tests, ~80 ms.**
 **Xcode build: succeeds for iOS Simulator without code signing.**
 
 ## Building
@@ -81,8 +97,9 @@ xcodebuild -scheme PuzzleHouse \
 open PuzzleHouse.xcodeproj
 ```
 
-Requires Xcode 26 / Swift 6.3. Package targets Swift 5.10 / iOS 17 so Xcode
-15.3+ also compiles the logic.
+Requires Xcode 26 / Swift 6.3. **iOS 26 / macOS 26 minimum** — the UI leans
+hard into the Liquid Glass material via `.glassEffect` and
+`GlassEffectContainer`, both of which require the iOS 26 SDK at runtime.
 
 ## Still requires you
 
@@ -95,8 +112,9 @@ Requires Xcode 26 / Swift 6.3. Package targets Swift 5.10 / iOS 17 so Xcode
    add a field `puzzleDayEpoch` of type `Int(64)` and mark it **Queryable +
    Sortable** (this is what the recent-history range query uses — String
    fields don't support `>=` in CloudKit). Mark `householdID` Queryable on
-   both `Membership` and `PuzzleResult`; mark `recordName` Queryable on every
-   type.
+   both `Membership` and `PuzzleResult`; on `Reaction` mark `createdAt`
+   Queryable + Sortable (the reactions query uses it); mark `recordName`
+   Queryable on every type.
 4. **Provision the App Group** `group.com.jestats.PuzzleHouse` at
    <https://developer.apple.com/account/resources/identifiers/list/applicationGroup>.
 5. **App icon** — a starter icon is generated at

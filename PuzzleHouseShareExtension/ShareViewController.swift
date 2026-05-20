@@ -62,12 +62,27 @@ public final class ShareViewController: UIViewController {
         for item in items {
             for provider in item.attachments ?? [] {
                 if let text = await ShareViewController.loadText(from: provider), !text.isEmpty {
+                    if ShareViewController.isAppleNewsURL(text) {
+                        model.status = .failure(message: "Apple News only shares a link — your score isn't included.\n\nTake a screenshot of the puzzle and tap + in Puzzle House, then \u{201C}Pick from Photos\u{201D}.")
+                        return
+                    }
                     await handle(text: text)
                     return
                 }
             }
         }
         model.status = .failure(message: "We couldn't read the shared text. Try copy/paste in the app.")
+    }
+
+    static func isAppleNewsURL(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Either a bare apple.news URL, or a longer payload starting with one.
+        guard let first = trimmed.split(whereSeparator: { $0.isWhitespace }).first else {
+            return false
+        }
+        let s = String(first)
+        guard let host = URL(string: s)?.host?.lowercased() else { return false }
+        return host == "apple.news" || host.hasSuffix(".apple.news")
     }
 
     @MainActor
@@ -166,10 +181,9 @@ struct ShareStatusView: View {
                     Text("Done")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 12))
-                        .foregroundStyle(.white)
                 }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
             }

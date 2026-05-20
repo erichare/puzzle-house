@@ -42,7 +42,7 @@ public enum StreakCalculator {
         }
     }
 
-    static func activeMembers(
+    public static func activeMembers(
         results: [PuzzleResult],
         memberUserIDs: [String],
         today: PuzzleDay
