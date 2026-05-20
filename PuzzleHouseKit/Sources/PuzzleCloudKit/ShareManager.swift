@@ -59,9 +59,15 @@ public final class ShareManager: ShareManaging, @unchecked Sendable {
                 }
             }
             if dirty {
-                let _ = try? await privateDatabase.modifyRecords(
+                // Don't swallow — if upgrading the share's permission
+                // silently fails, the recipient gets "Item Unavailable" and
+                // we have no diagnostic. Surface the error to the caller.
+                let result = try await privateDatabase.modifyRecords(
                     saving: [share], deleting: [], savePolicy: .changedKeys
                 )
+                if case .failure(let error)? = result.saveResults[share.recordID] {
+                    throw error
+                }
             }
             if let url = share.url {
                 return url
