@@ -5,14 +5,9 @@ public struct HouseSwitcherView: View {
     @Bindable var store: HouseholdStore
     @State private var showingCreate = false
     @State private var editing: Household?
+    @State private var inviting: Household?
     @State private var deleting: Household?
     @State private var errorMessage: String?
-    #if canImport(UIKit)
-    /// Active CloudKit share presenter. Held in @State so UICloudSharingController
-    /// (whose delegate ref is weak) doesn't get deallocated before the user
-    /// finishes interacting with the share sheet.
-    @State private var activeSharePresenter: CloudSharingPresenter?
-    #endif
 
     public init(store: HouseholdStore) {
         self.store = store
@@ -40,6 +35,9 @@ public struct HouseSwitcherView: View {
             }
             .sheet(item: $editing) { household in
                 HouseEditSheet(store: store, household: household)
+            }
+            .sheet(item: $inviting) { household in
+                InviteSheet(store: store, household: household)
             }
             .alert(item: errorBinding) { msg in
                 Alert(title: Text("Something went wrong"), message: Text(msg.text))
@@ -101,28 +99,13 @@ public struct HouseSwitcherView: View {
             .tint(.blue)
             if isOwner {
                 Button {
-                    presentInvite(for: household)
+                    inviting = household
                 } label: {
                     Label("Invite", systemImage: "person.badge.plus")
                 }
                 .tint(.green)
             }
         }
-    }
-
-    private func presentInvite(for household: Household) {
-        #if canImport(UIKit)
-        let presenter = CloudSharingPresenter(
-            household: household,
-            onDismiss: { activeSharePresenter = nil },
-            onError: { error in
-                errorMessage = String(describing: error)
-                activeSharePresenter = nil
-            }
-        )
-        activeSharePresenter = presenter
-        presenter.present()
-        #endif
     }
 
     private struct ErrorMessage: Identifiable {
