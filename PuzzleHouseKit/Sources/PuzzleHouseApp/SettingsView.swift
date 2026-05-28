@@ -287,7 +287,9 @@ struct EditMyMembershipSheet: View {
             }
             .onAppear {
                 if let me = store.members.first(where: { $0.userID == store.currentUserID }) {
-                    name = me.displayName
+                    // Start blank for a first-run placeholder so the user types
+                    // a fresh name instead of clearing "Me" / "New member".
+                    name = me.hasPlaceholderName ? "" : me.displayName
                     emoji = me.avatarEmoji
                     photoData = me.avatarPhotoData
                 }

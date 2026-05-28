@@ -129,6 +129,13 @@ public final class HouseholdStore {
         members.first(where: { $0.userID == userID })?.avatarPhotoData
     }
 
+    /// True when we belong to the current house but haven't picked a name yet —
+    /// drives the one-time first-run profile prompt.
+    public var needsProfileSetup: Bool {
+        guard ProfileDefaults.displayName == nil, let uid = currentUserID else { return false }
+        return members.contains { $0.userID == uid }
+    }
+
     // MARK: - Bootstrap
 
     public func bootstrap() async {
@@ -313,6 +320,10 @@ public final class HouseholdStore {
                 members = (try? await service.members(in: id)) ?? members
             }
         }
+        // If our membership still has a placeholder name ("Me"/"New member"),
+        // replace it with the name we picked elsewhere — leaving any custom
+        // per-house name alone.
+        await applySavedProfileIfPlaceholder()
         // Reactions are optional. If the Reaction record type isn't indexed in
         // CloudKit yet (typical on a fresh container), or any other error
         // happens, just show an empty list rather than failing the whole load.
@@ -592,6 +603,28 @@ public final class HouseholdStore {
         // Reassign the entire array so the @Observable registrar definitely
         // fires for any view tracking `members` (including ones that look up
         // a member via `members.first(where:)` rather than indexing).
+        members = members.map { $0.userID == uid ? updated : $0 }
+        // Remember as our default for houses we join later, so the name only
+        // ever has to be typed once.
+        ProfileDefaults.displayName = displayName
+        ProfileDefaults.avatarEmoji = avatarEmoji
+    }
+
+    /// Replace our placeholder membership name with the name we picked
+    /// elsewhere. Only touches placeholders, so a custom per-house nickname is
+    /// preserved. Runs after each household load.
+    private func applySavedProfileIfPlaceholder() async {
+        guard let uid = currentUserID,
+              let me = members.first(where: { $0.userID == uid }),
+              me.hasPlaceholderName,
+              let savedName = ProfileDefaults.displayName
+        else { return }
+        var updated = me
+        updated.displayName = savedName
+        if me.avatarEmoji == "🧩", let savedEmoji = ProfileDefaults.avatarEmoji {
+            updated.avatarEmoji = savedEmoji
+        }
+        try? await service.updateMembership(updated)
         members = members.map { $0.userID == uid ? updated : $0 }
     }
 

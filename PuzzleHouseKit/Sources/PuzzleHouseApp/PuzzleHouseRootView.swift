@@ -3,6 +3,7 @@ import PuzzleCore
 
 public struct PuzzleHouseRootView: View {
     @Bindable var store: HouseholdStore
+    @State private var didPromptProfile = false
 
     public init(store: HouseholdStore) {
         self.store = store
@@ -33,6 +34,14 @@ public struct PuzzleHouseRootView: View {
             if store.isJoining { JoiningOverlay() }
         }
         .animation(.snappy, value: store.isJoining)
+        // One-time prompt to pick a name + avatar so we don't show "Me" /
+        // "New member" to the rest of the house.
+        .sheet(isPresented: Binding(
+            get: { store.needsProfileSetup && !didPromptProfile },
+            set: { presenting in if !presenting { didPromptProfile = true } }
+        )) {
+            EditMyMembershipSheet(store: store)
+        }
     }
 
     private var content: some View {

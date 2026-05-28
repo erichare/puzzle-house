@@ -28,9 +28,7 @@ public struct ChecklistSection: View {
             HStack {
                 Text("Today's puzzles").font(.headline)
                 Spacer()
-                Text(progressLabel(for: rows))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+                progressLabel(for: rows)
             }
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.element.gameID) { idx, row in
@@ -48,6 +46,9 @@ public struct ChecklistSection: View {
     private func rowView(_ row: ChecklistRow) -> some View {
         let game = Game.known(by: row.gameID)
         let launchURL = game?.launchURL
+        let uid = store.currentUserID
+        // Current user's cell first, so you can scan your own column.
+        let ordered = row.perMember.filter { $0.userID == uid } + row.perMember.filter { $0.userID != uid }
         HStack(spacing: 12) {
             Text(game?.emoji ?? "🧩")
                 .frame(width: 22)
@@ -71,8 +72,8 @@ public struct ChecklistSection: View {
             }
             Spacer()
             HStack(spacing: 6) {
-                ForEach(row.perMember, id: \.userID) { entry in
-                    cell(userID: entry.userID, state: entry.state)
+                ForEach(ordered, id: \.userID) { entry in
+                    cell(userID: entry.userID, state: entry.state, isMe: entry.userID == uid)
                 }
             }
             Text("\(row.solvedCount)/\(row.totalCount)")
@@ -85,7 +86,7 @@ public struct ChecklistSection: View {
     }
 
     @ViewBuilder
-    private func cell(userID: String, state: CompletionState) -> some View {
+    private func cell(userID: String, state: CompletionState, isMe: Bool) -> some View {
         let emoji = store.avatarEmoji(for: userID)
         ZStack {
             Circle()
@@ -95,7 +96,17 @@ public struct ChecklistSection: View {
             Text(stateGlyph(for: state, fallback: emoji))
                 .font(.caption)
         }
-        .accessibilityLabel(Text("\(store.displayName(for: userID)) \(accessibilityState(for: state))"))
+        // Uniform footprint for every cell so columns line up; the accent ring
+        // marks your own cell (always the first in each row).
+        .frame(width: 34, height: 34)
+        .overlay {
+            if isMe {
+                Circle()
+                    .strokeBorder(Color.accentColor, lineWidth: 2)
+                    .frame(width: 33, height: 33)
+            }
+        }
+        .accessibilityLabel(Text("\(store.displayName(for: userID))\(isMe ? " (you)" : "") \(accessibilityState(for: state))"))
     }
 
     private func stateGlyph(for state: CompletionState, fallback emoji: String) -> String {
@@ -130,10 +141,26 @@ public struct ChecklistSection: View {
         }
     }
 
-    private func progressLabel(for rows: [ChecklistRow]) -> String {
+    @ViewBuilder
+    private func progressLabel(for rows: [ChecklistRow]) -> some View {
         let total = rows.reduce(0) { $0 + $1.totalCount }
-        let done = rows.reduce(0) { $0 + $1.solvedCount }
-        guard total > 0 else { return "" }
-        return "\(done) of \(total) done"
+        let houseDone = rows.reduce(0) { $0 + $1.solvedCount }
+        if total > 0 {
+            let myTotal = rows.count
+            let myDone = store.currentUserID.map { uid in
+                rows.filter { $0.perMember.first(where: { $0.userID == uid })?.state == .solved }.count
+            }
+            HStack(spacing: 6) {
+                if let myDone {
+                    Text("You \(myDone)/\(myTotal)")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(myDone == myTotal ? Color.green : Color.primary)
+                    Text("·").foregroundStyle(.tertiary)
+                }
+                Text("House \(houseDone)/\(total)")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+        }
     }
 }

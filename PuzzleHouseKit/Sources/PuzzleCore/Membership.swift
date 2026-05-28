@@ -45,6 +45,17 @@ public struct Membership: Hashable, Sendable, Codable, Identifiable {
 }
 
 public extension Membership {
+    /// Names we write automatically when we don't yet know who someone is — the
+    /// owner default and the joiner default. Treated as "unset" so we can prompt
+    /// for a real name and safely overwrite them, while leaving any name the
+    /// user actually chose (including a per-house nickname) untouched.
+    static let placeholderNames: Set<String> = ["Me", "New member"]
+
+    /// True when this membership still has an auto-assigned placeholder name.
+    var hasPlaceholderName: Bool {
+        Membership.placeholderNames.contains(displayName.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
     /// Deterministic record ID: one membership per (household, user). Lets us
     /// create a member's record idempotently when they join — re-accepting an
     /// invite or self-healing a missing membership writes to the same record

@@ -15,6 +15,17 @@ final class MembershipTests: XCTestCase {
         XCTAssertNotEqual(base, Membership.deterministicID(householdID: "h1", userID: "u2"))
     }
 
+    func testHasPlaceholderName() {
+        func member(_ name: String) -> Membership {
+            Membership(householdID: "h1", userID: "u1", displayName: name)
+        }
+        XCTAssertTrue(member("Me").hasPlaceholderName)
+        XCTAssertTrue(member("New member").hasPlaceholderName)
+        XCTAssertTrue(member("  Me  ").hasPlaceholderName)   // trimmed
+        XCTAssertFalse(member("Eric").hasPlaceholderName)
+        XCTAssertFalse(member("Elizabeth").hasPlaceholderName)
+    }
+
     func testDeterministicIDSanitizesNonAlphanumerics() {
         // CloudKit user record names can carry punctuation; the token has to
         // stay a safe record-name string.
