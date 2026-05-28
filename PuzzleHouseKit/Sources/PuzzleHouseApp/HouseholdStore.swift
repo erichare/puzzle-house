@@ -18,6 +18,10 @@ import PuzzleScoring
 @MainActor
 public enum PuzzleHouseSharedStore {
     public static var current: HouseholdStore?
+    /// Share metadata delivered before the store was ready — typically a cold
+    /// launch from tapping an invite link, where the scene connects before
+    /// `bootstrap()` finishes. Drained by `drainPendingShareIfNeeded()`.
+    public static var pendingShareMetadata: CKShare.Metadata?
 }
 
 @MainActor
@@ -423,6 +427,16 @@ public final class HouseholdStore {
         } catch {
             state = .error(friendlyShareError(error))
         }
+    }
+
+    /// Accept an invite that arrived before we were ready (cold launch). Safe
+    /// to call repeatedly; it no-ops until we're bootstrapped and only runs
+    /// once per stashed invite. Call after `bootstrap()`.
+    public func drainPendingShareIfNeeded() async {
+        guard currentUserID != nil else { return }   // wait until bootstrapped
+        guard let metadata = PuzzleHouseSharedStore.pendingShareMetadata else { return }
+        PuzzleHouseSharedStore.pendingShareMetadata = nil
+        await acceptIncomingShare(metadata)
     }
 
     public func submit(parsed: ParsedResult, rawPayload: String) async throws {

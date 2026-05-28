@@ -23,7 +23,12 @@ public struct PuzzleHouseRootView: View {
                 content
             }
         }
-        .task { if store.state == .idle { await store.bootstrap() } }
+        .task {
+            if store.state == .idle { await store.bootstrap() }
+            // Cold-launch invite: the scene stashed the metadata before we were
+            // ready; now that we're bootstrapped, accept it.
+            await store.drainPendingShareIfNeeded()
+        }
         .overlay {
             if store.isJoining { JoiningOverlay() }
         }

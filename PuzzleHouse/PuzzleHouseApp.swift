@@ -32,6 +32,7 @@ struct PuzzleHouseAppEntry: App {
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     Task {
+                        await store.drainPendingShareIfNeeded()
                         await store.drainPendingResults()
                         await store.refresh()
                     }
@@ -54,20 +55,30 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         return true
     }
 
-    /// Silent CloudKit pushes land here. We refresh data and then run the
-    /// "solved before you" / "today's champion" checks, both of which schedule
-    /// local notifications if anything is new.
-    /// Called when the user taps a CloudKit Share invite URL. iOS launches
-    /// the app, decodes the share metadata from the URL, and hands it here.
-    /// Without this method, the OS falls back to "You need a newer version
-    /// of [App] to open this" — the catch-all "no handler" error.
+    /// SwiftUI uses a scene-based lifecycle, so iOS delivers CloudKit share
+    /// acceptance to a *scene* delegate, not this app delegate. Vend one
+    /// programmatically (so we don't have to hand-author a scene manifest that
+    /// fights `UIApplicationSceneManifest_Generation`). SwiftUI's `WindowGroup`
+    /// keeps rendering — `ShareSceneDelegate` never creates its own window, it
+    /// only forwards the share metadata.
+    func application(
+        _ application: UIApplication,
+        configurationForConnecting connectingSceneSession: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        let config = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+        config.delegateClass = ShareSceneDelegate.self
+        return config
+    }
+
+    /// Fallback share handler. On a scene-based SwiftUI app iOS routes share
+    /// acceptance to `ShareSceneDelegate` instead, so this rarely (if ever)
+    /// fires — but it's harmless to keep and routes the same way.
     func application(
         _ application: UIApplication,
         userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata
     ) {
-        Task { @MainActor in
-            await PuzzleHouseSharedStore.current?.acceptIncomingShare(cloudKitShareMetadata)
-        }
+        Task { @MainActor in acceptOrStashIncomingShare(cloudKitShareMetadata) }
     }
 
     func application(
@@ -103,6 +114,47 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // Not fatal — silent pushes won't fire, but the app still works.
         // Common in Simulator (no APNs) or when push entitlement isn't fully
         // provisioned. We surface this via Settings > Diagnostics if needed.
+    }
+}
+
+/// Receives CloudKit share acceptance for the scene-based SwiftUI lifecycle.
+/// It deliberately does **not** create a window — SwiftUI's `WindowGroup` owns
+/// the UI; this delegate only forwards the share metadata.
+final class ShareSceneDelegate: NSObject, UIWindowSceneDelegate {
+    /// Cold launch: the app wasn't running when the invite was tapped, so the
+    /// metadata rides in on the connection options (the warm callback below is
+    /// NOT called in this case). Stash it; `PuzzleHouseRootView` drains it once
+    /// `bootstrap()` has run, so the accept happens against a ready store.
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        if let metadata = connectionOptions.cloudKitShareMetadata {
+            Task { @MainActor in
+                PuzzleHouseSharedStore.pendingShareMetadata = metadata
+            }
+        }
+    }
+
+    /// Warm: the app was already running (foreground or background) when the
+    /// invite link was tapped.
+    func windowScene(
+        _ windowScene: UIWindowScene,
+        userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata
+    ) {
+        Task { @MainActor in acceptOrStashIncomingShare(cloudKitShareMetadata) }
+    }
+}
+
+/// Accept the share now if the store is ready; otherwise stash it for the
+/// root view to drain after `bootstrap()`.
+@MainActor
+private func acceptOrStashIncomingShare(_ metadata: CKShare.Metadata) {
+    if let store = PuzzleHouseSharedStore.current {
+        Task { await store.acceptIncomingShare(metadata) }
+    } else {
+        PuzzleHouseSharedStore.pendingShareMetadata = metadata
     }
 }
 #endif
