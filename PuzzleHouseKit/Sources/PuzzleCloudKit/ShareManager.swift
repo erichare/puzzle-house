@@ -43,81 +43,86 @@ public final class ShareManager: ShareManaging, @unchecked Sendable {
 
     public func shareForSharing(_ household: Household) async throws -> (CKShare, CKContainer) {
         let zoneID = CKRecordZone.ID(zoneName: household.id, ownerName: CKCurrentUserDefaultName)
-        let recordID = CKRecord.ID(recordName: household.id, zoneID: zoneID)
 
-        // Fetch the live household record so we have its serverChangeTag.
-        // Saving a freshly-constructed CKRecord (no tag) alongside the share
-        // causes CloudKit to throw "Atomic failure" because the server record
-        // already exists.
-        let existingRecord = try await privateDatabase.record(for: recordID)
+        // We share the *entire household zone*, not just the Household record.
+        // A record-level share (`CKShare(rootRecord:)`) only shares the root
+        // and records linked to it by `parent` reference — and our Membership /
+        // PuzzleResult / Reaction records aren't parented, so they never synced
+        // to participants. A zone-wide share shares every record in the zone,
+        // current and future, in both directions. The zone-wide share lives at
+        // the reserved record name `CKRecordNameZoneWideShare`.
+        let shareRecordID = CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zoneID)
 
-        // If a share already exists for this record, reuse it but upgrade
-        // its permission + refresh title/thumbnail so older shares (created
-        // when we still defaulted to .none) become URL-acceptable.
-        if let shareReference = existingRecord.share,
-           let share = try? await privateDatabase.record(for: shareReference.recordID) as? CKShare {
-            var dirty = false
-            if share.publicPermission != .readWrite {
-                share.publicPermission = .readWrite
-                dirty = true
-            }
-            let desiredTitle = household.name as CKRecordValue
-            if (share[CKShare.SystemFieldKey.title] as? String) != household.name {
-                share[CKShare.SystemFieldKey.title] = desiredTitle
-                dirty = true
-            }
-            if let thumb = ShareManager.renderThumbnail(emoji: household.iconEmoji) {
-                let existingThumb = share[CKShare.SystemFieldKey.thumbnailImageData] as? Data
-                if existingThumb != thumb {
-                    share[CKShare.SystemFieldKey.thumbnailImageData] = thumb as CKRecordValue
-                    dirty = true
-                }
-            }
-            if dirty {
-                // Don't swallow — if upgrading the share's permission
-                // silently fails, the recipient gets "Item Unavailable" and
-                // we have no diagnostic. Surface the error to the caller.
-                let result = try await privateDatabase.modifyRecords(
-                    saving: [share], deleting: [], savePolicy: .changedKeys
-                )
-                if case .failure(let error)? = result.saveResults[share.recordID] {
-                    throw error
-                }
-            }
-            return (share, container)
+        // Reuse an existing zone-wide share, refreshing its metadata.
+        if let existing = try? await privateDatabase.record(for: shareRecordID) as? CKShare {
+            try await refreshShareMetadataIfNeeded(existing, household: household)
+            return (existing, container)
         }
 
-        let share = CKShare(rootRecord: existingRecord)
+        // Migrate off any legacy hierarchical share on the Household root — it
+        // shared only that one record, and would otherwise linger in the zone.
+        let rootID = CKRecord.ID(recordName: household.id, zoneID: zoneID)
+        if let root = try? await privateDatabase.record(for: rootID), let oldShare = root.share {
+            _ = try? await privateDatabase.modifyRecords(saving: [], deleting: [oldShare.recordID])
+        }
+
+        let share = CKShare(recordZoneID: zoneID)
         share[CKShare.SystemFieldKey.title] = household.name as CKRecordValue
         share[CKShare.SystemFieldKey.shareType] = "house.puzzle.household" as CKRecordValue
         if let thumb = ShareManager.renderThumbnail(emoji: household.iconEmoji) {
             share[CKShare.SystemFieldKey.thumbnailImageData] = thumb as CKRecordValue
         }
-        // Anyone with the URL can accept and contribute (read + write). The
-        // alternative (.none) requires pre-inviting each Apple ID via
-        // `share.addParticipant(_:)`, which the system share UI does
-        // interactively. The URL itself is the secret; treat it like one. The
-        // owner can still see + remove participants from the system share UI
-        // (and from our Manage Members screen).
+        // Anyone with the URL can accept and contribute (read + write). The URL
+        // itself is the secret; the owner can still see + remove participants
+        // from the system share UI and our Manage Members screen.
         share.publicPermission = .readWrite
 
         let result = try await privateDatabase.modifyRecords(
-            saving: [existingRecord, share], deleting: [], savePolicy: .ifServerRecordUnchanged
+            saving: [share], deleting: [], savePolicy: .ifServerRecordUnchanged
+        )
+        switch result.saveResults[share.recordID] {
+        case .success(let saved):
+            // Return the server's copy — it's the one carrying the share URL.
+            return ((saved as? CKShare) ?? share, container)
+        case .failure(let error):
+            throw error
+        case nil:
+            throw CloudKitServiceError.shareCreationFailed(household.id)
+        }
+    }
+
+    /// Bring an existing zone-wide share's permission/title/thumbnail up to date
+    /// without recreating it.
+    private func refreshShareMetadataIfNeeded(_ share: CKShare, household: Household) async throws {
+        var dirty = false
+        if share.publicPermission != .readWrite {
+            share.publicPermission = .readWrite
+            dirty = true
+        }
+        if (share[CKShare.SystemFieldKey.title] as? String) != household.name {
+            share[CKShare.SystemFieldKey.title] = household.name as CKRecordValue
+            dirty = true
+        }
+        if let thumb = ShareManager.renderThumbnail(emoji: household.iconEmoji),
+           (share[CKShare.SystemFieldKey.thumbnailImageData] as? Data) != thumb {
+            share[CKShare.SystemFieldKey.thumbnailImageData] = thumb as CKRecordValue
+            dirty = true
+        }
+        guard dirty else { return }
+        let result = try await privateDatabase.modifyRecords(
+            saving: [share], deleting: [], savePolicy: .changedKeys
         )
         if case .failure(let error)? = result.saveResults[share.recordID] {
             throw error
         }
-        if case .failure(let error)? = result.saveResults[existingRecord.recordID] {
-            throw error
-        }
-        return (share, container)
     }
 
     public func accept(shareMetadata: CKShare.Metadata) async throws -> Household.ID {
         _ = try await container.accept(shareMetadata)
-        // After acceptance, the household zone is in the sharedCloudDatabase.
-        // The share metadata's root record points at the Household record.
-        return shareMetadata.rootRecordID.recordName
+        // Zone-wide share: the household ID is the shared zone's name (a
+        // zone-wide share has no hierarchical root record, so we can't use
+        // `rootRecordID`). After acceptance the zone lives in sharedCloudDatabase.
+        return shareMetadata.share.recordID.zoneID.zoneName
     }
 
     /// Renders the household icon emoji onto a 256×256 peach gradient — used

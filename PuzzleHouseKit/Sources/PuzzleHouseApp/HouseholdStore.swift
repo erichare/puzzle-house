@@ -136,6 +136,8 @@ public final class HouseholdStore {
         do {
             self.currentUserID = try await service.currentUserRecordName()
             self.households = try await service.households()
+            // Subscribe for silent pushes so other members' changes refresh us.
+            await service.ensureSyncSubscriptions()
             self.selectedHouseholdID = households.first?.id
             if let id = selectedHouseholdID {
                 await loadHousehold(id)

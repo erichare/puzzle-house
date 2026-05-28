@@ -15,6 +15,10 @@ public protocol CloudKitServicing: Sendable {
     func deleteHousehold(_ id: Household.ID) async throws
     func shareURL(for household: Household) async throws -> URL
     func acceptShare(_ metadata: CKShare.Metadata) async throws -> Household.ID
+    /// Ensure silent-push subscriptions exist on both the private and shared
+    /// databases, so a change by any member triggers a refresh on everyone
+    /// else's device.
+    func ensureSyncSubscriptions() async
 
     func members(in householdID: Household.ID) async throws -> [Membership]
     /// Idempotently writes the current user's membership into a household so
@@ -191,14 +195,28 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
     }
 
     public func acceptShare(_ metadata: CKShare.Metadata) async throws -> Household.ID {
+        // Zone-wide share: the shared zone's identity comes from the share
+        // record (a zone share has no hierarchical root record).
+        let sharedZoneID = metadata.share.recordID.zoneID
         let id = try await shareManager.accept(shareMetadata: metadata)
         // Newly-accepted shared zones live in the shared DB and are owned by
         // the inviter — remember the real ownerName so subsequent
         // `members`/`results` calls build the correct zone ID.
-        rememberZone(id, scope: .shared, ownerName: metadata.rootRecordID.zoneID.ownerName)
+        rememberZone(id, scope: .shared, ownerName: sharedZoneID.ownerName)
+        // Subscribe to the shared DB so we're pushed about future changes.
+        await ensureSyncSubscriptions()
         // Write our membership so we show up in everyone's roster immediately.
         _ = try? await ensureMembership(in: id)
         return id
+    }
+
+    public func ensureSyncSubscriptions() async {
+        try? await subscriptionManager.ensureDatabaseSubscription(
+            id: "private-db-changes", in: container.privateCloudDatabase
+        )
+        try? await subscriptionManager.ensureDatabaseSubscription(
+            id: "shared-db-changes", in: container.sharedCloudDatabase
+        )
     }
 
     // MARK: - Members

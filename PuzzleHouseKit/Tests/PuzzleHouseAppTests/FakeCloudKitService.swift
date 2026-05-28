@@ -60,6 +60,8 @@ final class FakeCloudKitService: CloudKitServicing, @unchecked Sendable {
         metadata.rootRecordID.recordName
     }
 
+    func ensureSyncSubscriptions() async {}
+
     func members(in householdID: Household.ID) async throws -> [Membership] {
         members[householdID] ?? []
     }

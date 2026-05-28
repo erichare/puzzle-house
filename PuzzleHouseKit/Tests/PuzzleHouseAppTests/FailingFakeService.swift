@@ -27,6 +27,7 @@ final class FailingFakeService: CloudKitServicing, @unchecked Sendable {
     func acceptShare(_ metadata: CKShare.Metadata) async throws -> Household.ID {
         throw CloudKitServiceError.accountUnavailable
     }
+    func ensureSyncSubscriptions() async {}
     func members(in householdID: Household.ID) async throws -> [Membership] {
         members[householdID] ?? []
     }

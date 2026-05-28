@@ -57,6 +57,9 @@ public struct ManageMembersSheet: View {
                 }
             }
             .navigationTitle("Members")
+            // Pull the latest roster when the sheet opens — a member who just
+            // joined won't be in our cached list yet.
+            .task { await store.refresh() }
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
