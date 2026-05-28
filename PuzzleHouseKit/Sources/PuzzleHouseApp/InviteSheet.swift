@@ -7,22 +7,38 @@ import PuzzleCore
 import PuzzleUI
 import PuzzleCloudKit
 
+/// A household wrapped so SwiftUI's `ShareLink` can present Apple's native
+/// CloudKit sharing UI for it. `CKShareTransferRepresentation` calls back into
+/// `ShareManager` to fetch-or-create the underlying `CKShare` on demand, so the
+/// share is only created/touched when the user actually taps Invite — and all
+/// the share lifecycle logic stays in one place (`ShareManager`).
+public struct HouseholdShareItem: Transferable {
+    let household: Household
+
+    public static var transferRepresentation: some TransferRepresentation {
+        CKShareTransferRepresentation { item in
+            // The exporting closure is synchronous; the async fetch-or-create
+            // happens in `prepareShare`'s preparation handler, which is only
+            // run when the user actually invokes sharing.
+            .prepareShare(container: CKContainer.default()) {
+                let (share, _) = try await ShareManager().shareForSharing(item.household)
+                return share
+            }
+        }
+    }
+}
+
 /// Invite UI for a household.
 ///
-/// We use the proven `ShareLink(item: URL)` path — `ShareLink` doesn't
-/// support `CKShare` directly, and `UICloudSharingController` has been
-/// flaky. The trick is making sure the underlying CKShare is in the right
-/// state on the server: `publicPermission == .readWrite` is what lets any
-/// recipient accept by URL. The diagnostic block in this view shows the
-/// loaded share's actual permission so we can finally see what iCloud has,
-/// without needing CloudKit Dashboard access.
+/// The single call to action is a `ShareLink` that hands a `CKShare` to the
+/// system share sheet. That sheet handles *sending* the invite (Messages,
+/// Mail, copy link) and Apple's own participant management. In-app roster
+/// management — see who's in, remove someone, leave — is one tap away in
+/// `ManageMembersSheet`.
 public struct InviteSheet: View {
     let store: HouseholdStore
     let household: Household
-    @State private var share: CKShare?
-    @State private var error: String?
-    @State private var preparing = true
-    @State private var copied = false
+    @State private var managingMembers = false
     @Environment(\.dismiss) private var dismiss
 
     public init(store: HouseholdStore, household: Household) {
@@ -33,23 +49,33 @@ public struct InviteSheet: View {
     public var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 24) {
                     hero
-                    if preparing {
-                        ProgressView("Preparing share\u{2026}").padding(.top, 20)
-                    } else if let share {
-                        diagnosticBlock(share)
-                        intro
-                        if let url = share.url {
-                            sendBlock(url: url)
-                            linkBlock(url: url)
-                        }
-                    } else if let error {
-                        errorBlock(error)
+                    intro
+                    ShareLink(
+                        item: HouseholdShareItem(household: household),
+                        preview: SharePreview(household.name)
+                    ) {
+                        Label("Invite people", systemImage: "person.badge.plus")
+                            .font(.headline).frame(maxWidth: .infinity)
                     }
-                    Spacer(minLength: 30)
+                    .buttonStyle(.glassProminent)
+                    .controlSize(.large)
+                    .padding(.horizontal, 24)
+
+                    Button {
+                        managingMembers = true
+                    } label: {
+                        Label("Manage members", systemImage: "person.2")
+                            .font(.headline).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
+                    .padding(.horizontal, 24)
+
+                    Spacer(minLength: 20)
                 }
-                .padding()
+                .padding(.top)
             }
             .navigationTitle("Invite")
             #if os(iOS)
@@ -60,11 +86,11 @@ public struct InviteSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .task { await prepare() }
+            .sheet(isPresented: $managingMembers) {
+                ManageMembersSheet(store: store, household: household)
+            }
         }
     }
-
-    // MARK: - Sections
 
     private var hero: some View {
         VStack(spacing: 10) {
@@ -85,189 +111,10 @@ public struct InviteSheet: View {
         }
     }
 
-    @ViewBuilder
-    private func diagnosticBlock(_ share: CKShare) -> some View {
-        let permissionOK = share.publicPermission == .readWrite
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: permissionOK ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(permissionOK ? .green : .orange)
-                Text(permissionOK ? "Share is ready" : "Share isn't fully open")
-                    .font(.subheadline.weight(.semibold))
-            }
-            HStack {
-                Text("Permission:")
-                Text(permissionLabel(share.publicPermission))
-                    .foregroundStyle(permissionOK ? .green : .orange)
-                    .fontWeight(.medium)
-            }
-            .font(.caption)
-            HStack {
-                Text("Participants:")
-                Text("\(share.participants.count)")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            if !permissionOK {
-                Text("Recipients won't be able to accept this share until the permission is `readWrite`. Tap Reset below to try fixing it.")
-                    .font(.caption2).foregroundStyle(.secondary)
-                Button {
-                    Task { await forceUpgrade() }
-                } label: {
-                    Label("Reset share permission", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.glass)
-                .controlSize(.small)
-                .padding(.top, 4)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-    }
-
     private var intro: some View {
-        Text("Send this link to whoever you want in the house. Anyone who taps it can accept and join.")
+        Text("Send this invite to anyone you want in the house. They tap the link and they're in — their results show up here automatically.")
             .font(.callout).foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 12)
-    }
-
-    private func sendBlock(url: URL) -> some View {
-        VStack(spacing: 10) {
-            ShareLink(item: url) {
-                Label("Send invite", systemImage: "paperplane.fill")
-                    .font(.headline).frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.glassProminent)
-            .controlSize(.large)
-            Button {
-                #if canImport(UIKit)
-                UIPasteboard.general.string = url.absoluteString
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                #endif
-                withAnimation(.snappy) { copied = true }
-                Task {
-                    try? await Task.sleep(for: .seconds(2))
-                    withAnimation { copied = false }
-                }
-            } label: {
-                Label(copied ? "Copied!" : "Copy link",
-                      systemImage: copied ? "checkmark.circle.fill" : "link")
-                    .font(.headline).frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.glass)
-            .controlSize(.large)
-        }
-        .padding(.horizontal, 24)
-    }
-
-    private func linkBlock(url: URL) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("LINK").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
-            Text(url.absoluteString)
-                .font(.footnote.monospaced())
-                .foregroundStyle(.secondary)
-                .lineLimit(3).truncationMode(.middle)
-                .textSelection(.enabled)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal, 24)
-    }
-
-    private func errorBlock(_ message: String) -> some View {
-        VStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange).font(.title)
-            Text("Couldn't prepare share").font(.headline)
-            Text(message).font(.caption).multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-        }
-        .padding(20)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .padding(.horizontal, 24)
-    }
-
-    // MARK: - Share prep / repair
-
-    private func prepare() async {
-        preparing = true
-        defer { preparing = false }
-        do {
-            self.share = try await fetchOrCreateShare(forceUpgrade: false)
-        } catch {
-            self.error = String(describing: error)
-        }
-    }
-
-    private func forceUpgrade() async {
-        preparing = true
-        defer { preparing = false }
-        do {
-            self.share = try await fetchOrCreateShare(forceUpgrade: true)
-            self.error = nil
-        } catch {
-            self.error = String(describing: error)
-        }
-    }
-
-    private func fetchOrCreateShare(forceUpgrade: Bool) async throws -> CKShare {
-        let container = CKContainer.default()
-        let zoneID = CKRecordZone.ID(
-            zoneName: household.id, ownerName: CKCurrentUserDefaultName
-        )
-        let recordID = CKRecord.ID(recordName: household.id, zoneID: zoneID)
-        let db = container.privateCloudDatabase
-        let root = try await db.record(for: recordID)
-
-        if let shareReference = root.share,
-           let existing = try await db.record(for: shareReference.recordID) as? CKShare {
-            if forceUpgrade || existing.publicPermission != .readWrite {
-                existing.publicPermission = .readWrite
-                existing[CKShare.SystemFieldKey.title] = household.name as CKRecordValue
-                if let thumb = ShareManager.renderThumbnail(emoji: household.iconEmoji) {
-                    existing[CKShare.SystemFieldKey.thumbnailImageData] = thumb as CKRecordValue
-                }
-                let result = try await db.modifyRecords(
-                    saving: [existing], deleting: [], savePolicy: .changedKeys
-                )
-                if case .failure(let saveError)? = result.saveResults[existing.recordID] {
-                    throw saveError
-                }
-            }
-            return existing
-        }
-
-        // No share yet — create + save with root.
-        let share = CKShare(rootRecord: root)
-        share[CKShare.SystemFieldKey.title] = household.name as CKRecordValue
-        share[CKShare.SystemFieldKey.shareType] = "house.puzzle.household" as CKRecordValue
-        if let thumb = ShareManager.renderThumbnail(emoji: household.iconEmoji) {
-            share[CKShare.SystemFieldKey.thumbnailImageData] = thumb as CKRecordValue
-        }
-        share.publicPermission = .readWrite
-
-        let result = try await db.modifyRecords(
-            saving: [root, share], deleting: [], savePolicy: .ifServerRecordUnchanged
-        )
-        if case .failure(let saveError)? = result.saveResults[share.recordID] {
-            throw saveError
-        }
-        if case .failure(let saveError)? = result.saveResults[root.recordID] {
-            throw saveError
-        }
-        return share
-    }
-
-    private func permissionLabel(_ permission: CKShare.ParticipantPermission) -> String {
-        switch permission {
-        case .none: return "none (private — invite-only)"
-        case .readOnly: return "readOnly"
-        case .readWrite: return "readWrite"
-        case .unknown: return "unknown"
-        @unknown default: return "?"
-        }
+            .padding(.horizontal, 24)
     }
 }

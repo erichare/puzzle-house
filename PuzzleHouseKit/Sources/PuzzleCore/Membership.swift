@@ -43,3 +43,16 @@ public struct Membership: Hashable, Sendable, Codable, Identifiable {
         self.joinedAt = joinedAt
     }
 }
+
+public extension Membership {
+    /// Deterministic record ID: one membership per (household, user). Lets us
+    /// create a member's record idempotently when they join — re-accepting an
+    /// invite or self-healing a missing membership writes to the same record
+    /// instead of spawning duplicates.
+    static func deterministicID(householdID: Household.ID, userID: String) -> ID {
+        let userToken = String(userID.unicodeScalars
+            .map { CharacterSet.alphanumerics.contains($0) ? Character($0) : "_" })
+            .prefix(40)
+        return "mb-\(householdID)-\(userToken)"
+    }
+}

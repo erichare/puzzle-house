@@ -64,6 +64,24 @@ final class FakeCloudKitService: CloudKitServicing, @unchecked Sendable {
         members[householdID] ?? []
     }
 
+    func ensureMembership(in householdID: Household.ID) async throws -> Membership? {
+        let existing = members[householdID] ?? []
+        if existing.contains(where: { $0.userID == userID }) { return nil }
+        let m = Membership(
+            id: Membership.deterministicID(householdID: householdID, userID: userID),
+            householdID: householdID,
+            userID: userID,
+            displayName: "New member",
+            role: .member
+        )
+        members[householdID, default: []].append(m)
+        return m
+    }
+
+    func removeMember(userID: String, from householdID: Household.ID) async throws {
+        members[householdID]?.removeAll { $0.userID == userID }
+    }
+
     func submit(_ result: PuzzleResult) async throws {
         resultsByDay[result.householdID, default: [:]][result.puzzleDay, default: []].append(result)
     }

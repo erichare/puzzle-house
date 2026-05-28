@@ -45,6 +45,9 @@ public final class HouseholdStore {
     /// True while we're in the middle of swapping to / refreshing a household.
     /// Driven by `loadHousehold` so UI can show a spinner.
     public private(set) var isLoadingHousehold: Bool = false
+    /// True while we're accepting an incoming invite and waiting for the
+    /// shared house to replicate into our account. Drives the "Joining…" UI.
+    public private(set) var isJoining: Bool = false
     public var preferences: UserPreferences
 
     /// How many days of history to keep loaded for streak math.
@@ -295,6 +298,15 @@ public final class HouseholdStore {
             state = .error(String(describing: error))
             return
         }
+        // Self-heal: if we belong to this house but have no membership record
+        // yet (joined before membership-on-join shipped, or the accept-time
+        // write lost a race with zone replication), create one now so we show
+        // up in everyone's roster — then reflect it locally.
+        if let uid = currentUserID, !members.contains(where: { $0.userID == uid }) {
+            if (try? await service.ensureMembership(in: id)) != nil {
+                members = (try? await service.members(in: id)) ?? members
+            }
+        }
         // Reactions are optional. If the Reaction record type isn't indexed in
         // CloudKit yet (typical on a fresh container), or any other error
         // happens, just show an empty list rather than failing the whole load.
@@ -392,15 +404,24 @@ public final class HouseholdStore {
     /// household list so the new entry shows up in the Houses tab, and
     /// switches to it.
     public func acceptIncomingShare(_ metadata: CKShare.Metadata) async {
+        isJoining = true
+        defer { isJoining = false }
         do {
             let id = try await service.acceptShare(metadata)
-            households = (try? await service.households()) ?? households
-            // Even if `households()` fails, we still know which one we just
-            // joined — switching forces a member/result load against that
-            // household's shared zone.
+            // The shared zone may still be replicating into our account. Poll
+            // briefly for the house to surface in our list before switching, so
+            // we don't land on an empty screen the first time.
+            for attempt in 0..<6 {
+                let all = (try? await service.households()) ?? households
+                households = all
+                if all.contains(where: { $0.id == id }) { break }
+                if attempt < 5 { try? await Task.sleep(for: .milliseconds(700)) }
+            }
+            // Switch regardless — `loadHousehold` retries zone resolution and
+            // its backfill writes our membership so we appear in the roster.
             await switchHousehold(id)
         } catch {
-            state = .error("Couldn't accept invite: \(String(describing: error))")
+            state = .error(friendlyShareError(error))
         }
     }
 
@@ -556,5 +577,41 @@ public final class HouseholdStore {
         // fires for any view tracking `members` (including ones that look up
         // a member via `members.first(where:)` rather than indexing).
         members = members.map { $0.userID == uid ? updated : $0 }
+    }
+
+    public func isOwner(of household: Household) -> Bool {
+        household.createdByUserID == currentUserID
+    }
+
+    /// Owner action: remove someone else from the current house. Drops them as
+    /// a CKShare participant and deletes their membership record.
+    public func removeMember(_ membership: Membership) async throws {
+        guard let householdID = selectedHouseholdID else { return }
+        try await service.removeMember(userID: membership.userID, from: householdID)
+        members = members.filter { $0.userID != membership.userID }
+    }
+
+    /// Leave a shared house (or delete it if you're the owner). Mirrors the
+    /// Houses-tab swipe action; exposed by name for the Manage Members screen.
+    public func leaveHousehold(_ household: Household) async throws {
+        try await deleteHousehold(household)
+    }
+
+    /// Maps the common CloudKit sharing failures to copy a person can act on,
+    /// instead of dumping a raw `CKError`.
+    private func friendlyShareError(_ error: Error) -> String {
+        if let ck = error as? CKError {
+            switch ck.code {
+            case .notAuthenticated:
+                return "You need to be signed in to iCloud to join a house. Open Settings, tap your name, turn on iCloud, then tap the link again."
+            case .networkUnavailable, .networkFailure:
+                return "No internet connection. Reconnect, then tap the invite link again."
+            case .serviceUnavailable, .requestRateLimited, .zoneBusy, .serverResponseLost:
+                return "iCloud is busy right now. Give it a moment, then tap the invite link again."
+            default:
+                break
+            }
+        }
+        return "We couldn't open that invite. Make sure you're signed in to iCloud, then tap the link again."
     }
 }

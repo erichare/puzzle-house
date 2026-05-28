@@ -24,6 +24,10 @@ public struct PuzzleHouseRootView: View {
             }
         }
         .task { if store.state == .idle { await store.bootstrap() } }
+        .overlay {
+            if store.isJoining { JoiningOverlay() }
+        }
+        .animation(.snappy, value: store.isJoining)
     }
 
     private var content: some View {
@@ -43,5 +47,23 @@ public struct PuzzleHouseRootView: View {
             SettingsView(store: store)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
+    }
+}
+
+/// Shown while we're accepting an invite and waiting for the shared house to
+/// replicate, so tapping a link gives immediate feedback instead of a blank
+/// beat before the house appears.
+private struct JoiningOverlay: View {
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.25).ignoresSafeArea()
+            VStack(spacing: 14) {
+                ProgressView().controlSize(.large)
+                Text("Joining house\u{2026}").font(.headline)
+            }
+            .padding(28)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        }
+        .transition(.opacity)
     }
 }

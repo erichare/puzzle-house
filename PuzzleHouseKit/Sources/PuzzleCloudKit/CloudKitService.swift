@@ -17,6 +17,14 @@ public protocol CloudKitServicing: Sendable {
     func acceptShare(_ metadata: CKShare.Metadata) async throws -> Household.ID
 
     func members(in householdID: Household.ID) async throws -> [Membership]
+    /// Idempotently writes the current user's membership into a household so
+    /// they appear in the roster. Returns the membership it created, or nil if
+    /// one already existed. Used when joining a shared house and to self-heal
+    /// guests who joined before membership-on-join existed.
+    func ensureMembership(in householdID: Household.ID) async throws -> Membership?
+    /// Owner action: removes another member from a household — drops them as a
+    /// CKShare participant and deletes their membership record.
+    func removeMember(userID: String, from householdID: Household.ID) async throws
 
     func submit(_ result: PuzzleResult) async throws
     func deleteResult(_ resultID: PuzzleResult.ID, in householdID: Household.ID) async throws
@@ -61,9 +69,17 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
     public let subscriptionManager: SubscriptionManaging
     public let writeQueue: OfflineWriteQueue?
 
-    /// Cache: which database does each household ID live in? Populated lazily
-    /// from `households()`. Reset on sign-out.
-    private let scopeByHousehold = OSAllocatedUnfairLock<[Household.ID: CKDatabase.Scope]>(initialState: [:])
+    /// Cache: which database + zone-owner does each household live in? Owned
+    /// households are owned by the current user; shared households are owned by
+    /// the *inviter*, so we must remember the real `ownerName` to build a
+    /// correct `CKRecordZone.ID`. Populated from `households()`,
+    /// `createHousehold`, and `acceptShare`. Reset on sign-out.
+    private let zoneByHousehold = OSAllocatedUnfairLock<[Household.ID: ZoneRef]>(initialState: [:])
+
+    private struct ZoneRef: Sendable {
+        let scope: CKDatabase.Scope
+        let ownerName: String
+    }
 
     public init(
         container: CKContainer = .default(),
@@ -98,13 +114,13 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
         for zone in ownedZones where zone.zoneID.zoneName.hasPrefix("household-") {
             if let h = try? await fetchHousehold(zone: zone, database: container.privateCloudDatabase) {
                 results.append(h)
-                rememberScope(h.id, .private)
+                rememberZone(h.id, scope: .private, ownerName: zone.zoneID.ownerName)
             }
         }
         for zone in sharedZones where zone.zoneID.zoneName.hasPrefix("household-") {
             if let h = try? await fetchHousehold(zone: zone, database: container.sharedCloudDatabase) {
                 results.append(h)
-                rememberScope(h.id, .shared)
+                rememberZone(h.id, scope: .shared, ownerName: zone.zoneID.ownerName)
             }
         }
         return results.sorted { $0.createdAt < $1.createdAt }
@@ -119,10 +135,11 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
             createdByUserID: userID
         )
         let zoneID = try await zoneManager.createZone(for: household.id)
-        rememberScope(household.id, .private)
+        rememberZone(household.id, scope: .private, ownerName: CKCurrentUserDefaultName)
 
         let householdRecord = RecordMapping.householdRecord(from: household, zoneID: zoneID)
         let membership = Membership(
+            id: Membership.deterministicID(householdID: household.id, userID: userID),
             householdID: household.id,
             userID: userID,
             displayName: "Me",
@@ -141,7 +158,7 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
     }
 
     public func update(_ household: Household) async throws {
-        let (database, zoneID) = try resolve(household.id)
+        let (database, zoneID) = try await resolve(household.id)
         let record = RecordMapping.householdRecord(from: household, zoneID: zoneID)
         let _ = try await database.modifyRecords(
             saving: [record], deleting: [], savePolicy: .changedKeys
@@ -149,20 +166,24 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
     }
 
     public func deleteHousehold(_ id: Household.ID) async throws {
-        let scope = scope(for: id) ?? .private
-        if scope == .private {
+        let ref = zoneRef(for: id)
+        if (ref?.scope ?? .private) == .private {
             let zoneID = CKRecordZone.ID(zoneName: id, ownerName: CKCurrentUserDefaultName)
             try await zoneManager.deleteZone(zoneID)
         } else {
-            // Participant leaving a shared household: remove the share from
-            // our shared DB by deleting the zone reference. CloudKit cleans
-            // up the participant relationship.
-            let zoneID = CKRecordZone.ID(zoneName: id, ownerName: CKCurrentUserDefaultName)
+            // Participant leaving a shared household: first delete our own
+            // membership record so we vanish from everyone else's roster, then
+            // drop the shared-zone reference. CloudKit cleans up the
+            // participant relationship.
+            try? await deleteMyMembership(in: id)
+            let zoneID = CKRecordZone.ID(
+                zoneName: id, ownerName: ref?.ownerName ?? CKCurrentUserDefaultName
+            )
             try await container.sharedCloudDatabase.modifyRecordZones(
                 saving: [], deleting: [zoneID]
             )
         }
-        scopeByHousehold.withLock { $0.removeValue(forKey: id) }
+        zoneByHousehold.withLock { $0.removeValue(forKey: id) }
     }
 
     public func shareURL(for household: Household) async throws -> URL {
@@ -171,16 +192,19 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
 
     public func acceptShare(_ metadata: CKShare.Metadata) async throws -> Household.ID {
         let id = try await shareManager.accept(shareMetadata: metadata)
-        // Newly-accepted shared zones live in the shared DB; cache the scope
-        // so subsequent `members`/`results` calls hit the right database.
-        rememberScope(id, .shared)
+        // Newly-accepted shared zones live in the shared DB and are owned by
+        // the inviter — remember the real ownerName so subsequent
+        // `members`/`results` calls build the correct zone ID.
+        rememberZone(id, scope: .shared, ownerName: metadata.rootRecordID.zoneID.ownerName)
+        // Write our membership so we show up in everyone's roster immediately.
+        _ = try? await ensureMembership(in: id)
         return id
     }
 
     // MARK: - Members
 
     public func members(in householdID: Household.ID) async throws -> [Membership] {
-        let (database, zoneID) = try resolve(householdID)
+        let (database, zoneID) = try await resolve(householdID)
         let query = CKQuery(
             recordType: RecordType.membership,
             predicate: NSPredicate(format: "householdID == %@", householdID)
@@ -192,11 +216,65 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
         }
     }
 
+    public func ensureMembership(in householdID: Household.ID) async throws -> Membership? {
+        let userID = try await currentUserRecordName()
+        let (database, zoneID) = try await resolve(householdID)
+        let recordID = CKRecord.ID(
+            recordName: Membership.deterministicID(householdID: householdID, userID: userID),
+            zoneID: zoneID
+        )
+        // Use a point lookup, not a CKQuery: a query's index can lag a record
+        // written moments ago (e.g. the owner's membership right after they
+        // create a house), and we must never clobber an existing membership —
+        // that would downgrade the owner to "New member"/.member.
+        if (try? await database.record(for: recordID)) != nil {
+            return nil
+        }
+        let membership = Membership(
+            id: recordID.recordName,
+            householdID: householdID,
+            userID: userID,
+            displayName: "New member",
+            role: .member
+        )
+        let record = RecordMapping.membershipRecord(from: membership, zoneID: zoneID)
+        let _ = try await database.modifyRecords(
+            saving: [record], deleting: [], savePolicy: .changedKeys
+        )
+        return membership
+    }
+
+    public func removeMember(userID: String, from householdID: Household.ID) async throws {
+        let (database, zoneID) = try await resolve(householdID)
+        // Drop them as a CKShare participant (best-effort — for a public
+        // "anyone with the link" share this removes their explicit entry but
+        // can't stop a re-tap of the same link; full lockout needs a new link).
+        let rootID = CKRecord.ID(recordName: householdID, zoneID: zoneID)
+        if let root = try? await database.record(for: rootID),
+           let shareRef = root.share,
+           let share = try? await database.record(for: shareRef.recordID) as? CKShare,
+           let participant = share.participants.first(where: {
+               $0.userIdentity.userRecordID?.recordName == userID
+           }) {
+            share.removeParticipant(participant)
+            let _ = try await database.modifyRecords(
+                saving: [share], deleting: [], savePolicy: .changedKeys
+            )
+        }
+        // Delete their membership record(s) so they leave the roster.
+        let toDelete = ((try? await members(in: householdID)) ?? [])
+            .filter { $0.userID == userID }
+            .map { CKRecord.ID(recordName: $0.id, zoneID: zoneID) }
+        if !toDelete.isEmpty {
+            let _ = try await database.modifyRecords(saving: [], deleting: toDelete)
+        }
+    }
+
     // MARK: - Results
 
     public func submit(_ result: PuzzleResult) async throws {
         do {
-            let (database, zoneID) = try resolve(result.householdID)
+            let (database, zoneID) = try await resolve(result.householdID)
             let record = try RecordMapping.puzzleResultRecord(from: result, zoneID: zoneID)
             // `.changedKeys` overwrites an existing record with the same ID
             // instead of failing — important because we use deterministic IDs
@@ -214,7 +292,7 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
     }
 
     public func deleteResult(_ resultID: PuzzleResult.ID, in householdID: Household.ID) async throws {
-        let (database, zoneID) = try resolve(householdID)
+        let (database, zoneID) = try await resolve(householdID)
         let recordID = CKRecord.ID(recordName: resultID, zoneID: zoneID)
         let _ = try await database.modifyRecords(saving: [], deleting: [recordID])
     }
@@ -223,7 +301,7 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
         in householdID: Household.ID,
         on day: PuzzleDay
     ) async throws -> [PuzzleResult] {
-        let (database, zoneID) = try resolve(householdID)
+        let (database, zoneID) = try await resolve(householdID)
         let predicate = NSPredicate(
             format: "householdID == %@ AND puzzleDayISO == %@",
             householdID, day.isoString
@@ -240,7 +318,7 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
         in householdID: Household.ID,
         since day: PuzzleDay
     ) async throws -> [PuzzleResult] {
-        let (database, zoneID) = try resolve(householdID)
+        let (database, zoneID) = try await resolve(householdID)
         // puzzleDayEpoch is Int(64) Queryable+Sortable in the CloudKit schema;
         // String fields don't support >= so we can't use puzzleDayISO here.
         let predicate = NSPredicate(
@@ -263,7 +341,7 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
         emoji: String
     ) async throws {
         let userID = try await currentUserRecordName()
-        let (database, zoneID) = try resolve(householdID)
+        let (database, zoneID) = try await resolve(householdID)
         // Deterministic ID per (target, author) only — re-reacting with a
         // different emoji overwrites the same record, enforcing "one
         // reaction per person per result".
@@ -285,12 +363,9 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
         in householdID: Household.ID
     ) async throws {
         let userID = try await currentUserRecordName()
-        let (_, zoneID) = try resolve(householdID)
+        let (database, zoneID) = try await resolve(householdID)
         let reactionID = Reaction.deterministicID(targetResultID: resultID, authorUserID: userID)
         let recordID = CKRecord.ID(recordName: reactionID, zoneID: zoneID)
-        let database: CKDatabase = (scope(for: householdID) == .shared)
-            ? container.sharedCloudDatabase
-            : container.privateCloudDatabase
         let _ = try await database.modifyRecords(saving: [], deleting: [recordID])
     }
 
@@ -298,7 +373,7 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
         in householdID: Household.ID,
         since day: PuzzleDay
     ) async throws -> [Reaction] {
-        let (database, zoneID) = try resolve(householdID)
+        let (database, zoneID) = try await resolve(householdID)
         // Reactions don't have a puzzleDay — filter by createdAt instead.
         let cutoff = day.startOfDay(in: TimeZone(identifier: "UTC") ?? .gmt)
         let predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
@@ -311,7 +386,7 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
     }
 
     public func updateMembership(_ membership: Membership) async throws {
-        let (database, zoneID) = try resolve(membership.householdID)
+        let (database, zoneID) = try await resolve(membership.householdID)
         let record = RecordMapping.membershipRecord(from: membership, zoneID: zoneID)
         let _ = try await database.modifyRecords(
             saving: [record], deleting: [], savePolicy: .changedKeys
@@ -333,23 +408,44 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
         return nil
     }
 
-    private func resolve(_ householdID: Household.ID) throws -> (CKDatabase, CKRecordZone.ID) {
-        let scope = scope(for: householdID) ?? .private
-        let database: CKDatabase = (scope == .shared)
+    private func resolve(_ householdID: Household.ID) async throws -> (CKDatabase, CKRecordZone.ID) {
+        let ref = try await resolveZoneRef(householdID)
+        let database: CKDatabase = (ref.scope == .shared)
             ? container.sharedCloudDatabase
             : container.privateCloudDatabase
-        let zoneID = CKRecordZone.ID(
-            zoneName: householdID,
-            ownerName: scope == .private ? CKCurrentUserDefaultName : (scope == .shared ? CKCurrentUserDefaultName : CKCurrentUserDefaultName)
-        )
+        let zoneID = CKRecordZone.ID(zoneName: householdID, ownerName: ref.ownerName)
         return (database, zoneID)
     }
 
-    private func rememberScope(_ householdID: Household.ID, _ scope: CKDatabase.Scope) {
-        scopeByHousehold.withLock { $0[householdID] = scope }
+    /// Resolve a household's database + zone-owner. Uses the cache populated by
+    /// `households()`; if it's cold (a relaunch before any refresh ran, or a
+    /// just-accepted share), repopulate by listing zones once, then fall back
+    /// to assuming an owned zone in the private DB.
+    private func resolveZoneRef(_ householdID: Household.ID) async throws -> ZoneRef {
+        if let ref = zoneRef(for: householdID) { return ref }
+        _ = try? await households()
+        if let ref = zoneRef(for: householdID) { return ref }
+        return ZoneRef(scope: .private, ownerName: CKCurrentUserDefaultName)
     }
 
-    private func scope(for householdID: Household.ID) -> CKDatabase.Scope? {
-        scopeByHousehold.withLock { $0[householdID] }
+    /// Deletes the current user's own membership record from a household — used
+    /// when leaving a shared house so they disappear from the roster.
+    private func deleteMyMembership(in householdID: Household.ID) async throws {
+        let userID = try await currentUserRecordName()
+        let (database, zoneID) = try await resolve(householdID)
+        let mine = ((try? await members(in: householdID)) ?? [])
+            .filter { $0.userID == userID }
+            .map { CKRecord.ID(recordName: $0.id, zoneID: zoneID) }
+        if !mine.isEmpty {
+            let _ = try await database.modifyRecords(saving: [], deleting: mine)
+        }
+    }
+
+    private func rememberZone(_ householdID: Household.ID, scope: CKDatabase.Scope, ownerName: String) {
+        zoneByHousehold.withLock { $0[householdID] = ZoneRef(scope: scope, ownerName: ownerName) }
+    }
+
+    private func zoneRef(for householdID: Household.ID) -> ZoneRef? {
+        zoneByHousehold.withLock { $0[householdID] }
     }
 }

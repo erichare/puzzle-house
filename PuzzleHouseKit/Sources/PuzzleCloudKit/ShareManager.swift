@@ -12,6 +12,13 @@ public protocol ShareManaging: Sendable {
     /// the user's private DB before calling this.
     func createShare(for household: Household) async throws -> URL
 
+    /// Fetch-or-create the household's CKShare and return it with its
+    /// container, ready to hand to a `CKShareTransferRepresentation` /
+    /// `ShareLink`. The household must exist in the caller's private DB.
+    /// This is the single source of truth for share lifecycle — both the
+    /// modern share UI and `createShare(for:)` go through it.
+    func shareForSharing(_ household: Household) async throws -> (CKShare, CKContainer)
+
     /// Accepts an incoming share. Returns the household ID once the
     /// participant zone is available locally.
     func accept(shareMetadata: CKShare.Metadata) async throws -> Household.ID
@@ -27,6 +34,14 @@ public final class ShareManager: ShareManaging, @unchecked Sendable {
     }
 
     public func createShare(for household: Household) async throws -> URL {
+        let (share, _) = try await shareForSharing(household)
+        guard let url = share.url else {
+            throw CloudKitServiceError.shareCreationFailed(household.id)
+        }
+        return url
+    }
+
+    public func shareForSharing(_ household: Household) async throws -> (CKShare, CKContainer) {
         let zoneID = CKRecordZone.ID(zoneName: household.id, ownerName: CKCurrentUserDefaultName)
         let recordID = CKRecord.ID(recordName: household.id, zoneID: zoneID)
 
@@ -69,9 +84,7 @@ public final class ShareManager: ShareManaging, @unchecked Sendable {
                     throw error
                 }
             }
-            if let url = share.url {
-                return url
-            }
+            return (share, container)
         }
 
         let share = CKShare(rootRecord: existingRecord)
@@ -82,9 +95,10 @@ public final class ShareManager: ShareManaging, @unchecked Sendable {
         }
         // Anyone with the URL can accept and contribute (read + write). The
         // alternative (.none) requires pre-inviting each Apple ID via
-        // `share.addParticipant(_:)`, which UICloudSharingController does
-        // interactively but we don't — our flow ships a plain URL via
-        // Messages. The URL itself is the secret; treat it like one.
+        // `share.addParticipant(_:)`, which the system share UI does
+        // interactively. The URL itself is the secret; treat it like one. The
+        // owner can still see + remove participants from the system share UI
+        // (and from our Manage Members screen).
         share.publicPermission = .readWrite
 
         let result = try await privateDatabase.modifyRecords(
@@ -96,10 +110,7 @@ public final class ShareManager: ShareManaging, @unchecked Sendable {
         if case .failure(let error)? = result.saveResults[existingRecord.recordID] {
             throw error
         }
-        guard let url = share.url else {
-            throw CloudKitServiceError.shareCreationFailed(household.id)
-        }
-        return url
+        return (share, container)
     }
 
     public func accept(shareMetadata: CKShare.Metadata) async throws -> Household.ID {

@@ -30,6 +30,12 @@ final class FailingFakeService: CloudKitServicing, @unchecked Sendable {
     func members(in householdID: Household.ID) async throws -> [Membership] {
         members[householdID] ?? []
     }
+    func ensureMembership(in householdID: Household.ID) async throws -> Membership? {
+        throw CloudKitServiceError.accountUnavailable
+    }
+    func removeMember(userID: String, from householdID: Household.ID) async throws {
+        throw CloudKitServiceError.accountUnavailable
+    }
     func submit(_ result: PuzzleResult) async throws {
         if shouldFailSubmit { throw CloudKitServiceError.accountUnavailable }
     }

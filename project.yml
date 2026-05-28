@@ -71,6 +71,12 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        # Required for the app to accept CloudKit share invites — without it,
+        # tapping an invite link never calls userDidAcceptCloudKitShareWith.
+        # Lives here (not just PuzzleHouse/Info.plist) so it survives xcodegen
+        # regeneration in CI, which synthesises the main app's Info.plist from
+        # these INFOPLIST_KEY_* settings.
+        INFOPLIST_KEY_CKSharingSupported: YES
         INFOPLIST_KEY_CFBundleDisplayName: Puzzle House
         INFOPLIST_KEY_NSHumanReadableCopyright: ""
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Puzzle House scans recent screenshots in your Photos to find puzzle results so you don't have to copy and paste."

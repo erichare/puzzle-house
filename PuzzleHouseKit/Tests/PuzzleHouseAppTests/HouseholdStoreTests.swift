@@ -274,4 +274,62 @@ final class HouseholdStoreTests: XCTestCase {
         let momResult = store.todayResults.first!
         XCTAssertEqual(store.spoilerMap[momResult.id], .hidden)
     }
+
+    // MARK: - Sharing / membership
+
+    func testLoadingBackfillsMissingMembershipForSelf() async {
+        // We belong to the house (we can read it) but have no membership
+        // record yet — the self-heal backfill should add us to the roster.
+        let service = FakeCloudKitService(
+            userID: "me",
+            households: [household("h1")],
+            members: [
+                "h1": [Membership(householdID: "h1", userID: "owner", displayName: "Owner", role: .owner)],
+            ]
+        )
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
+        await store.bootstrap()
+        XCTAssertTrue(store.members.contains { $0.userID == "me" })
+    }
+
+    func testOwnerRemoveMemberDropsFromRoster() async throws {
+        let service = FakeCloudKitService(
+            userID: "me",
+            households: [household("h1")],   // createdByUserID == "me" → owner
+            members: [
+                "h1": [
+                    Membership(householdID: "h1", userID: "me", displayName: "Me", role: .owner),
+                    Membership(householdID: "h1", userID: "pat", displayName: "Pat"),
+                ],
+            ]
+        )
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
+        await store.bootstrap()
+        XCTAssertTrue(store.isOwner(of: store.selectedHousehold!))
+        XCTAssertEqual(store.members.count, 2)
+
+        let pat = store.members.first { $0.userID == "pat" }!
+        try await store.removeMember(pat)
+        XCTAssertFalse(store.members.contains { $0.userID == "pat" })
+    }
+
+    func testNonOwnerLeaveRemovesHousehold() async throws {
+        let friends = Household(id: "h1", name: "Friends", iconEmoji: "🎉", createdByUserID: "owner")
+        let service = FakeCloudKitService(
+            userID: "me",
+            households: [friends],
+            members: [
+                "h1": [
+                    Membership(householdID: "h1", userID: "owner", displayName: "Owner", role: .owner),
+                    Membership(householdID: "h1", userID: "me", displayName: "Me"),
+                ],
+            ]
+        )
+        let store = HouseholdStore(service: service, notifications: FakeNotificationService(), now: { HouseholdStoreTests.fixedNow() })
+        await store.bootstrap()
+        XCTAssertFalse(store.isOwner(of: friends))
+
+        try await store.leaveHousehold(friends)
+        XCTAssertFalse(store.households.contains { $0.id == "h1" })
+    }
 }

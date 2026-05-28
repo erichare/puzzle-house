@@ -6,6 +6,7 @@ public struct HouseSwitcherView: View {
     @State private var showingCreate = false
     @State private var editing: Household?
     @State private var inviting: Household?
+    @State private var managingMembers: Household?
     @State private var deleting: Household?
     @State private var errorMessage: String?
 
@@ -38,6 +39,9 @@ public struct HouseSwitcherView: View {
             }
             .sheet(item: $inviting) { household in
                 InviteSheet(store: store, household: household)
+            }
+            .sheet(item: $managingMembers) { household in
+                ManageMembersSheet(store: store, household: household)
             }
             .alert(item: errorBinding) { msg in
                 Alert(title: Text("Something went wrong"), message: Text(msg.text))
@@ -102,6 +106,13 @@ public struct HouseSwitcherView: View {
                     inviting = household
                 } label: {
                     Label("Invite", systemImage: "person.badge.plus")
+                }
+                .tint(.green)
+            } else {
+                Button {
+                    managingMembers = household
+                } label: {
+                    Label("Members", systemImage: "person.2")
                 }
                 .tint(.green)
             }
