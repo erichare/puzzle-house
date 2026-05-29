@@ -8,13 +8,16 @@ registered devices) and fails the archive with "Your team has no
 devices". The reliable workaround is to drop to manual signing and
 pre-create the App Store profile via the API.
 
-Puzzle House has four targets that each need their own provisioning
-profile, selected by env `PLATFORM`:
+Puzzle House targets each need their own provisioning profile, selected
+by env `PLATFORM`:
 
-  PLATFORM=IOS_APP             (default — the main app)
+  PLATFORM=IOS_APP             (default — the iOS app)
   PLATFORM=IOS_SHARE_EXTENSION
   PLATFORM=IOS_MESSAGES
   PLATFORM=IOS_WIDGET
+  PLATFORM=MAC_APP             (the macOS app)
+  PLATFORM=MAC_SHARE_EXTENSION
+  PLATFORM=MAC_WIDGET
 
 Common env (all flavors):
   AC_API_KEY_ID         — ASC API key id (10-char)
@@ -101,6 +104,30 @@ FLAVORS: dict[str, Flavor] = {
         bundle_env_var="IOS_WIDGET_BUNDLE_ID",
         bundle_platform="IOS",
         default_profile_name="Puzzle House Widget App Store",
+    ),
+    "MAC_APP": Flavor(
+        label="Puzzle House Mac App Store",
+        profile_type="MAC_APP_STORE",
+        cert_type="DISTRIBUTION",
+        bundle_env_var="MAC_APP_BUNDLE_ID",
+        bundle_platform="MAC_OS",
+        default_profile_name="Puzzle House Mac App Store",
+    ),
+    "MAC_SHARE_EXTENSION": Flavor(
+        label="Puzzle House Mac Share Extension App Store",
+        profile_type="MAC_APP_STORE",
+        cert_type="DISTRIBUTION",
+        bundle_env_var="MAC_SHARE_EXTENSION_BUNDLE_ID",
+        bundle_platform="MAC_OS",
+        default_profile_name="Puzzle House Mac Share Extension App Store",
+    ),
+    "MAC_WIDGET": Flavor(
+        label="Puzzle House Mac Widget App Store",
+        profile_type="MAC_APP_STORE",
+        cert_type="DISTRIBUTION",
+        bundle_env_var="MAC_WIDGET_BUNDLE_ID",
+        bundle_platform="MAC_OS",
+        default_profile_name="Puzzle House Mac Widget App Store",
     ),
 }
 

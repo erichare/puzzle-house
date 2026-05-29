@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.developer.icloud-container-identifiers</key>
+    <array>
+        <string>iCloud.com.jestats.PuzzleHouse</string>
+    </array>
+    <key>com.apple.developer.icloud-services</key>
+    <array>
+        <string>CloudKit</string>
+    </array>
+    <!-- Use the Production CloudKit datastore even for local Debug builds, so
+         the Mac app stays in sync with the shipping iOS app (App Store /
+         TestFlight builds use Production). Without this, a development-signed
+         build silently talks to the separate Development environment and shows
+         none of the household's real members/results. The team provisioning
+         profile permits both environments. -->
+    <key>com.apple.developer.icloud-container-environment</key>
+    <string>Production</string>
+    <key>com.apple.developer.ubiquity-container-identifiers</key>
+    <array/>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.com.jestats.PuzzleHouse</string>
+    </array>
+    <key>aps-environment</key>
+    <string>production</string>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <key>com.apple.security.files.user-selected.read-only</key>
+    <true/>
+</dict>
+</plist>

@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "0EE66CADC071D0A37A3082FA"
-               BuildableName = "PuzzleHouse.app"
-               BlueprintName = "PuzzleHouse"
+               BlueprintIdentifier = "60E9174993E5B238A785A2AF"
+               BuildableName = "PuzzleHouseMac.app"
+               BlueprintName = "PuzzleHouseMac"
                ReferencedContainer = "container:PuzzleHouse.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -29,9 +29,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "652CC9D2C8A988D1F6A22577"
-               BuildableName = "PuzzleHouseMessages.appex"
-               BlueprintName = "PuzzleHouseMessages"
+               BlueprintIdentifier = "2EFBC10C736078CD8622B65F"
+               BuildableName = "PuzzleHouseMacShareExtension.appex"
+               BlueprintName = "PuzzleHouseMacShareExtension"
                ReferencedContainer = "container:PuzzleHouse.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -43,23 +43,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "BE4C73CB9F2C35B8356EACF1"
-               BuildableName = "PuzzleHouseShareExtension.appex"
-               BlueprintName = "PuzzleHouseShareExtension"
-               ReferencedContainer = "container:PuzzleHouse.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E579926AB1750D1E507988C3"
-               BuildableName = "PuzzleHouseWidget.appex"
-               BlueprintName = "PuzzleHouseWidget"
+               BlueprintIdentifier = "7430B47261639DF4C6D341CB"
+               BuildableName = "PuzzleHouseMacWidget.appex"
+               BlueprintName = "PuzzleHouseMacWidget"
                ReferencedContainer = "container:PuzzleHouse.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -74,9 +60,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "0EE66CADC071D0A37A3082FA"
-            BuildableName = "PuzzleHouse.app"
-            BlueprintName = "PuzzleHouse"
+            BlueprintIdentifier = "60E9174993E5B238A785A2AF"
+            BuildableName = "PuzzleHouseMac.app"
+            BlueprintName = "PuzzleHouseMac"
             ReferencedContainer = "container:PuzzleHouse.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -99,9 +85,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "0EE66CADC071D0A37A3082FA"
-            BuildableName = "PuzzleHouse.app"
-            BlueprintName = "PuzzleHouse"
+            BlueprintIdentifier = "60E9174993E5B238A785A2AF"
+            BuildableName = "PuzzleHouseMac.app"
+            BlueprintName = "PuzzleHouseMac"
             ReferencedContainer = "container:PuzzleHouse.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -118,9 +104,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "0EE66CADC071D0A37A3082FA"
-            BuildableName = "PuzzleHouse.app"
-            BlueprintName = "PuzzleHouse"
+            BlueprintIdentifier = "60E9174993E5B238A785A2AF"
+            BuildableName = "PuzzleHouseMac.app"
+            BlueprintName = "PuzzleHouseMac"
             ReferencedContainer = "container:PuzzleHouse.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

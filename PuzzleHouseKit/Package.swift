@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "PuzzleVision", targets: ["PuzzleVision"]),
         .library(name: "PuzzleUI", targets: ["PuzzleUI"]),
         .library(name: "PuzzleHouseApp", targets: ["PuzzleHouseApp"]),
+        .library(name: "PuzzleShareKit", targets: ["PuzzleShareKit"]),
         .executable(name: "puzzlecheck", targets: ["puzzlecheck"]),
         .executable(name: "make-icon", targets: ["make-icon"]),
     ],
@@ -31,6 +32,10 @@ let package = Package(
                 "PuzzleCore", "PuzzleParsers", "PuzzleScoring",
                 "PuzzleCloudKit", "PuzzleUI", "PuzzleVision",
             ]
+        ),
+        .target(
+            name: "PuzzleShareKit",
+            dependencies: ["PuzzleCore", "PuzzleParsers", "PuzzleCloudKit"]
         ),
         .executableTarget(
             name: "puzzlecheck",

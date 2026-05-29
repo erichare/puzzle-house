@@ -14,30 +14,29 @@ public struct StatsView: View {
     private struct MemberID: Identifiable { let id: String }
 
     public var body: some View {
-        NavigationStack {
-            ScrollView {
-                let stats = WeeklyStatsCalculator.compute(
-                    results: store.recentResults,
-                    memberUserIDs: store.members.map(\.userID),
-                    today: store.today,
-                    windowDays: 7
-                )
-                VStack(alignment: .leading, spacing: 16) {
-                    summaryCards(stats: stats)
-                    highlightsSection
-                    memberTable(stats: stats)
-                }
-                .padding()
+        ScrollView {
+            let stats = WeeklyStatsCalculator.compute(
+                results: store.recentResults,
+                memberUserIDs: store.members.map(\.userID),
+                today: store.today,
+                windowDays: 7
+            )
+            VStack(alignment: .leading, spacing: 16) {
+                summaryCards(stats: stats)
+                highlightsSection
+                memberTable(stats: stats)
             }
-            .navigationTitle("This week")
-            .refreshable { await store.refresh() }
-            .sheet(item: Binding(
-                get: { openMember.map(MemberID.init) },
-                set: { openMember = $0?.id }
-            )) { picked in
-                MemberDetailSheet(store: store, userID: picked.id)
-            }
+            .padding()
+            .macReadableWidth()
         }
+        .refreshable { await store.refresh() }
+        .sheet(item: Binding(
+            get: { openMember.map(MemberID.init) },
+            set: { openMember = $0?.id }
+        )) { picked in
+            MemberDetailSheet(store: store, userID: picked.id)
+        }
+        .paneNavigation(title: "This week")
     }
 
     @ViewBuilder
