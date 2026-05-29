@@ -23,6 +23,27 @@ public enum EmojiGameParser: PuzzleParser {
             || first.range(of: movesPattern, options: .regularExpression) != nil
     }
 
+    // MARK: - Payload construction (manual entry / OCR bridge)
+
+    /// The fewest moves possible — Apple News labels this score "Perfect".
+    /// Every wrong guess or revealed clue adds one. Exposed so the manual-entry
+    /// slider and tests share a single source of truth.
+    public static let perfectMoves = 6
+
+    /// Builds the canonical moves payload that `parse(_:)` understands, keeping
+    /// the `EmojiGame #<n> moves=<m>` wire format defined in exactly one place.
+    public static func movesPayload(puzzleNumber: Int, moves: Int) -> String {
+        "EmojiGame #\(puzzleNumber) moves=\(moves)"
+    }
+
+    /// Apple News' Emoji Game exposes no puzzle number, so we key each day's
+    /// result by its date as `YYYYMMDD`. This matches the OCR fallback's
+    /// numbering, so a manually-entered result and a scanned one for the same
+    /// day collapse onto the same record instead of double-counting.
+    public static func puzzleNumber(for date: Date, in timeZone: TimeZone) -> Int {
+        Int(PuzzleDay(date: date, timeZone: timeZone).epoch)
+    }
+
     public static func parse(_ text: String) throws -> ParsedResult {
         let normalized = ParserHelpers.normalize(text)
         let lines = normalized.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)

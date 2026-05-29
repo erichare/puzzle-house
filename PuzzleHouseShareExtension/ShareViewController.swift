@@ -63,7 +63,7 @@ public final class ShareViewController: UIViewController {
             for provider in item.attachments ?? [] {
                 if let text = await ShareViewController.loadText(from: provider), !text.isEmpty {
                     if ShareViewController.isAppleNewsURL(text) {
-                        model.status = .failure(message: "Apple News only shares a link — your score isn't included.\n\nTake a screenshot of the puzzle and tap + in Puzzle House, then \u{201C}Pick from Photos\u{201D}.")
+                        model.status = .failure(message: "Apple News only shares a link — your score isn't included.\n\nOpen Puzzle House, tap +, and choose \u{201C}Log Emoji Game\u{201D} to enter your moves. It takes one tap.")
                         return
                     }
                     await handle(text: text)

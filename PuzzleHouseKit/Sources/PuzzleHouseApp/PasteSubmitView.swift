@@ -15,6 +15,7 @@ public struct PasteSubmitView: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var isScanning = false
     @State private var showingScanSheet = false
+    @State private var showingEmojiEntry = false
 
     let onSubmit: @MainActor (ParsedResult, String) async throws -> Void
     @Environment(\.dismiss) private var dismiss
@@ -26,6 +27,18 @@ public struct PasteSubmitView: View {
     public var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Button {
+                        showingEmojiEntry = true
+                    } label: {
+                        Label("Log Emoji Game", systemImage: "face.smiling")
+                    }
+                    .disabled(isSubmitting || isScanning)
+                } header: {
+                    Text("Emoji Game")
+                } footer: {
+                    Text("Apple News shares only a link, so enter how many moves you took. 6 = Perfect.")
+                }
                 Section("Paste a puzzle result") {
                     TextEditor(text: $text)
                         .frame(minHeight: 140)
@@ -53,7 +66,7 @@ public struct PasteSubmitView: View {
                         Label("Scan recent screenshots", systemImage: "sparkles.rectangle.stack")
                     }
                     .disabled(isSubmitting || isScanning)
-                    Text("Best for Apple News' Emoji Game — it has no Share Sheet. \u{201C}Scan recent\u{201D} asks for Photos access and tries the last 20 screenshots automatically.")
+                    Text("Works for Wordle, Connections, and Strands screenshots. For Apple News' Emoji Game, use \u{201C}Log Emoji Game\u{201D} above — its emoji grid doesn't read reliably from a screenshot.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if let parsed {
@@ -79,6 +92,12 @@ public struct PasteSubmitView: View {
             .sheet(isPresented: $showingScanSheet) {
                 ScanRecentScreenshotsSheet { parsed, raw in
                     try await onSubmit(parsed, raw)
+                }
+            }
+            .sheet(isPresented: $showingEmojiEntry) {
+                EmojiGameEntryView { parsed, raw in
+                    try await onSubmit(parsed, raw)
+                    dismiss()
                 }
             }
             .navigationTitle("Add Result")

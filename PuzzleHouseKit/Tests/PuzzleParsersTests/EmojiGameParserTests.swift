@@ -43,4 +43,36 @@ final class EmojiGameParserTests: XCTestCase {
         let b = try EmojiGameParser.parse("EmojiGame #1 moves=8").rawScore.goodness
         XCTAssertGreaterThan(a, b)
     }
+
+    // MARK: - Manual entry helpers
+
+    func testPerfectMovesIsSix() {
+        XCTAssertEqual(EmojiGameParser.perfectMoves, 6)
+    }
+
+    func testMovesPayloadRoundTripsThroughParser() throws {
+        let text = EmojiGameParser.movesPayload(puzzleNumber: 20260528, moves: 6)
+        XCTAssertEqual(text, "EmojiGame #20260528 moves=6")
+        let parsed = try EmojiGameParser.parse(text)
+        XCTAssertEqual(parsed.gameID, "emoji_game")
+        XCTAssertEqual(parsed.puzzleNumber, 20260528)
+        XCTAssertEqual(parsed.rawScore, .custom(value: -6, solved: true))
+        XCTAssertEqual(parsed.metadata["moves"], "6")
+    }
+
+    func testMovesPayloadUpperBoundParses() throws {
+        let parsed = try EmojiGameParser.parse(
+            EmojiGameParser.movesPayload(puzzleNumber: 1, moves: 20)
+        )
+        XCTAssertEqual(parsed.rawScore, .custom(value: -20, solved: true))
+    }
+
+    func testPuzzleNumberIsDateBasedYYYYMMDD() {
+        var c = DateComponents()
+        c.year = 2026; c.month = 5; c.day = 28
+        c.timeZone = TimeZone(identifier: "UTC")
+        let date = Calendar(identifier: .gregorian).date(from: c)!
+        let number = EmojiGameParser.puzzleNumber(for: date, in: TimeZone(identifier: "UTC")!)
+        XCTAssertEqual(number, 20260528)
+    }
 }
