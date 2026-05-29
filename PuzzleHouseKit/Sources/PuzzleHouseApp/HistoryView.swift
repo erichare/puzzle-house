@@ -15,21 +15,19 @@ public struct HistoryView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            Group {
-                if store.recentResults.isEmpty {
-                    ContentUnavailableView(
-                        "No history yet",
-                        systemImage: "clock.arrow.circlepath",
-                        description: Text("Submit a few results — they'll show up here grouped by day.")
-                    )
-                } else {
-                    list
-                }
+        Group {
+            if store.recentResults.isEmpty {
+                ContentUnavailableView(
+                    "No history yet",
+                    systemImage: "clock.arrow.circlepath",
+                    description: Text("Submit a few results — they'll show up here grouped by day.")
+                )
+            } else {
+                list
             }
-            .navigationTitle("History")
-            .refreshable { await store.refresh() }
         }
+        .refreshable { await store.refresh() }
+        .paneNavigation(title: "History")
     }
 
     private var list: some View {

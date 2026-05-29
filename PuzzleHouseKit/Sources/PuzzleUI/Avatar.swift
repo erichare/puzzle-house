@@ -1,6 +1,8 @@
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
 #endif
 
 public struct Avatar: View {
@@ -23,9 +25,8 @@ public struct Avatar: View {
 
     public var body: some View {
         Group {
-            #if canImport(UIKit)
-            if let data = photoData, let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
+            if let data = photoData, let image = Self.platformImage(from: data) {
+                image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size, height: size)
@@ -34,11 +35,23 @@ public struct Avatar: View {
             } else {
                 emojiCircle
             }
-            #else
-            emojiCircle
-            #endif
         }
         .accessibilityLabel(Text(displayName))
+    }
+
+    /// Decode avatar photo bytes into a SwiftUI `Image` on whichever platform
+    /// we're running — `UIImage` on iOS, `NSImage` on macOS — so avatar photos
+    /// render natively on the Mac instead of degrading to the emoji fallback.
+    private static func platformImage(from data: Data) -> Image? {
+        #if canImport(UIKit)
+        guard let uiImage = UIImage(data: data) else { return nil }
+        return Image(uiImage: uiImage)
+        #elseif canImport(AppKit)
+        guard let nsImage = NSImage(data: data) else { return nil }
+        return Image(nsImage: nsImage)
+        #else
+        return nil
+        #endif
     }
 
     private var emojiCircle: some View {

@@ -17,48 +17,44 @@ public struct TodayView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            ScrollView {
-                GlassEffectContainer(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 20) {
-                        header
-                        ChecklistSection(store: store)
-                        leaderboard
-                        resultCards
-                    }
-                }
-                .padding()
-            }
+        scrollBody
             .background(backgroundGradient.ignoresSafeArea())
-            .navigationTitle("Today")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingPaste = true
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                }
-            }
-            .sheet(isPresented: $showingPaste) {
-                PasteSubmitView { parsed, raw in
-                    try await store.submit(parsed: parsed, rawPayload: raw)
-                }
-            }
             .sheet(item: $openResult) { result in
                 ResultDetailSheet(store: store, result: result)
             }
-            .sheet(item: Binding(
-                get: { openMember.map(MemberID.init) },
-                set: { openMember = $0?.id }
-            )) { picked in
+            .sheet(item: memberBinding) { picked in
                 MemberDetailSheet(store: store, userID: picked.id)
             }
             .sheet(isPresented: $showingSwitcher) {
                 HouseSwitcherView(store: store)
             }
             .refreshable { await store.refresh() }
+            // iOS shows its own "Add" toolbar button + paste sheet here; on
+            // macOS the window toolbar owns Add Result, so this is a no-op.
+            .todayAddResult(isPresented: $showingPaste, store: store)
+            .paneNavigation(title: "Today")
+    }
+
+    private var scrollBody: some View {
+        ScrollView {
+            GlassEffectContainer(spacing: 20) {
+                VStack(alignment: .leading, spacing: 20) {
+                    header
+                    ChecklistSection(store: store)
+                    leaderboard
+                    resultCards
+                }
+            }
+            .padding()
+            .macReadableWidth()
         }
+    }
+
+    private var memberBinding: Binding<MemberID?> {
+        Binding(
+            get: { openMember.map(MemberID.init) },
+            set: { openMember = $0?.id }
+        )
     }
 
     private struct MemberID: Identifiable { let id: String }
@@ -236,5 +232,33 @@ public struct TodayView: View {
         .padding(.vertical, 30)
         .frame(maxWidth: .infinity)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius))
+    }
+}
+
+private extension View {
+    /// iOS-only "Add" toolbar button + paste sheet for `TodayView`. On macOS the
+    /// window toolbar (`RootMacView`) owns Add Result, so this passes through
+    /// unchanged — preventing a duplicate add button.
+    @ViewBuilder
+    func todayAddResult(isPresented: Binding<Bool>, store: HouseholdStore) -> some View {
+        #if os(iOS)
+        self
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isPresented.wrappedValue = true
+                    } label: {
+                        Label("Add", systemImage: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: isPresented) {
+                PasteSubmitView { parsed, raw in
+                    try await store.submit(parsed: parsed, rawPayload: raw)
+                }
+            }
+        #else
+        self
+        #endif
     }
 }

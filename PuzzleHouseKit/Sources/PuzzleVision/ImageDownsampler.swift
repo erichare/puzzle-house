@@ -25,4 +25,16 @@ public enum ImageDownsampler {
         ]
         return CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions as CFDictionary)
     }
+
+    /// Decode a full-resolution `CGImage` from image data, cross-platform
+    /// (no `UIImage`/`NSImage` round-trip). Prefer `downsample(data:maxPixelDimension:)`
+    /// for large screenshots in memory-constrained contexts; use this when you
+    /// already hold reasonably-sized bytes (e.g. a pasteboard/dropped image on
+    /// macOS) and want the original pixels for OCR.
+    public static func cgImage(from data: Data) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+            return nil
+        }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+    }
 }
