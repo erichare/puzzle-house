@@ -47,6 +47,7 @@ public final class MacUICoordinator {
 public struct RootMacView: View {
     @Bindable var store: HouseholdStore
     @Bindable var coordinator: MacUICoordinator
+    @Environment(\.openSettings) private var openSettings
     @State private var didPromptProfile = false
 
     // Sheet / dialog state — mirrors HouseSwitcherView's actions.
@@ -83,10 +84,18 @@ public struct RootMacView: View {
             // was ready — accept it now that we're bootstrapped.
             await store.drainPendingShareIfNeeded()
             #if DEBUG
-            // Debug-only UI hook: `open --args -PHOpenAddResult` jumps straight
-            // to the Add Result sheet (handy for screenshots / manual checks).
-            if ProcessInfo.processInfo.arguments.contains("-PHOpenAddResult") {
+            // Debug-only UI hooks for screenshots / manual checks:
+            //   open --args -PHOpenAddResult   → jump to the Add Result sheet
+            //   open --args -PHOpenSettings     → open the Settings window
+            let args = ProcessInfo.processInfo.arguments
+            if args.contains("-PHOpenAddResult") {
                 coordinator.showAddResult = true
+            }
+            if args.contains("-PHOpenSettings") {
+                openSettings()
+            }
+            if args.contains("-PHRequestNotifications") {
+                await store.requestNotificationPermission()
             }
             #endif
         }

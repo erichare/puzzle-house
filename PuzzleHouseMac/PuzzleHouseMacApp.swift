@@ -45,11 +45,10 @@ struct PuzzleHouseMacApp: App {
         .defaultSize(width: 1100, height: 720)
         .commands { PuzzleHouseCommands(store: store, coordinator: coordinator) }
 
-        // Native ⌘, Settings window. Reuses the shared SettingsView so prefs
-        // (spoilers, notifications, profile, diagnostics) stay in sync with iOS.
+        // Native ⌘, Settings window — a TabView of grouped forms (MacSettingsView)
+        // mapping the same preferences as iOS into the idiomatic Mac layout.
         Settings {
-            SettingsView(store: store)
-                .frame(minWidth: 460, minHeight: 420)
+            MacSettingsView(store: store)
         }
 
         // Menu-bar quick entry: paste/submit a result and peek at today's
