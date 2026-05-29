@@ -1,5 +1,6 @@
 #if os(macOS)
 import SwiftUI
+import AppKit
 import PuzzleUI
 
 /// Native macOS Settings window: a `TabView` of grouped `Form`s, the idiomatic
@@ -101,10 +102,15 @@ public struct MacSettingsView: View {
                         }
                     }
                 case .denied:
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Notifications are turned off").font(.callout)
-                        Text("Enable them in System Settings \u{203A} Notifications \u{203A} Puzzle House.")
+                        Text("macOS won't re-ask once it's been answered. Approve Puzzle House in System Settings and they'll start working here.")
                             .font(.caption).foregroundStyle(.secondary)
+                        Button("Open Notification Settings\u{2026}") {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
                     }
                 default:
                     Toggle("Daily reminder if you haven't played", isOn: $store.preferences.notifyDailyReminder)
