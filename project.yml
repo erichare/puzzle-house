@@ -26,6 +26,12 @@ settings:
     PUZZLE_HOUSE_MESSAGES_PROFILE_UUID: ""
     PUZZLE_HOUSE_WIDGET_PROFILE_NAME: ""
     PUZZLE_HOUSE_WIDGET_PROFILE_UUID: ""
+    PUZZLE_HOUSE_MAC_APP_PROFILE_NAME: ""
+    PUZZLE_HOUSE_MAC_APP_PROFILE_UUID: ""
+    PUZZLE_HOUSE_MAC_SHARE_EXTENSION_PROFILE_NAME: ""
+    PUZZLE_HOUSE_MAC_SHARE_EXTENSION_PROFILE_UUID: ""
+    PUZZLE_HOUSE_MAC_WIDGET_PROFILE_NAME: ""
+    PUZZLE_HOUSE_MAC_WIDGET_PROFILE_UUID: ""
 
 packages:
   PuzzleHouseKit:
@@ -99,9 +105,7 @@ targets:
       - path: PuzzleHouseShareExtension
     dependencies:
       - package: PuzzleHouseKit
-        product: PuzzleParsers
-      - package: PuzzleHouseKit
-        product: PuzzleCloudKit
+        product: PuzzleShareKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jestats.PuzzleHouse.ShareExtension
@@ -158,6 +162,101 @@ targets:
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: "0.1.0"
 
+  # Native macOS app. Shares PuzzleHouseKit (models, CloudKit, store, views)
+  # with the iOS target — same CloudKit container / app group / bundle family
+  # so it ships as a universal App Store app. macOS-specific UI + lifecycle
+  # live in PuzzleHouseMac/. (Mac Share extension + Widget targets are added
+  # in a later phase and embedded here then.)
+  PuzzleHouseMac:
+    type: application
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: PuzzleHouseMac
+    dependencies:
+      - package: PuzzleHouseKit
+        product: PuzzleHouseApp
+      - package: PuzzleHouseKit
+        product: PuzzleCloudKit
+      - target: PuzzleHouseMacWidget
+        embed: true
+        copyPhase:
+          name: Embed App Extensions
+      - target: PuzzleHouseMacShareExtension
+        embed: true
+        copyPhase:
+          name: Embed App Extensions
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jestats.PuzzleHouse
+        PRODUCT_NAME: Puzzle House
+        PROVISIONING_PROFILE_SPECIFIER: "$(PUZZLE_HOUSE_MAC_APP_PROFILE_NAME)"
+        PROVISIONING_PROFILE: "$(PUZZLE_HOUSE_MAC_APP_PROFILE_UUID)"
+        CODE_SIGN_ENTITLEMENTS: PuzzleHouseMac/PuzzleHouseMac.entitlements
+        GENERATE_INFOPLIST_FILE: YES
+        # macOS gate for the userDidAcceptCloudKitShareWith delegate callback —
+        # without it the OS never delivers accepted invites to the app.
+        INFOPLIST_KEY_CKSharingSupported: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Puzzle House
+        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.games"
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Puzzle House scans recent screenshots to find puzzle results so you don't have to copy and paste."
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "0.1.0"
+
+  # Native macOS WidgetKit widget. Reuses the exact iOS widget source
+  # (PuzzleHouseWidget/PuzzleHouseWidget.swift) — it is fully cross-platform and
+  # reads the shared app-group snapshot, so no code changes are needed. Renders
+  # in Notification Center / on the desktop on macOS 26.
+  PuzzleHouseMacWidget:
+    type: app-extension
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: PuzzleHouseWidget/PuzzleHouseWidget.swift
+    dependencies:
+      - package: PuzzleHouseKit
+        product: PuzzleCloudKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jestats.PuzzleHouse.MacWidget
+        PRODUCT_NAME: PuzzleHouseMacWidget
+        SDKROOT: macosx
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+        PROVISIONING_PROFILE_SPECIFIER: "$(PUZZLE_HOUSE_MAC_WIDGET_PROFILE_NAME)"
+        PROVISIONING_PROFILE: "$(PUZZLE_HOUSE_MAC_WIDGET_PROFILE_UUID)"
+        INFOPLIST_FILE: PuzzleHouseMacWidget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: PuzzleHouseMacWidget/PuzzleHouseMacWidget.entitlements
+        SKIP_INSTALL: YES
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "0.1.0"
+
+  # Native macOS Share extension (Finder/Safari share menu). Reuses the shared
+  # ShareImportCore + ShareStatusView from PuzzleShareKit via an NSViewController
+  # shell, so it behaves identically to the iOS Share extension.
+  PuzzleHouseMacShareExtension:
+    type: app-extension
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: PuzzleHouseMacShareExtension
+    dependencies:
+      - package: PuzzleHouseKit
+        product: PuzzleShareKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jestats.PuzzleHouse.MacShareExtension
+        PRODUCT_NAME: PuzzleHouseMacShareExtension
+        SDKROOT: macosx
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+        PROVISIONING_PROFILE_SPECIFIER: "$(PUZZLE_HOUSE_MAC_SHARE_EXTENSION_PROFILE_NAME)"
+        PROVISIONING_PROFILE: "$(PUZZLE_HOUSE_MAC_SHARE_EXTENSION_PROFILE_UUID)"
+        INFOPLIST_FILE: PuzzleHouseMacShareExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: PuzzleHouseMacShareExtension/PuzzleHouseMacShareExtension.entitlements
+        SKIP_INSTALL: YES
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "0.1.0"
+
 schemes:
   PuzzleHouse:
     build:
@@ -166,6 +265,25 @@ schemes:
         PuzzleHouseShareExtension: all
         PuzzleHouseMessages: all
         PuzzleHouseWidget: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  # Separate scheme so the iOS build scripts (Scripts/build-ios.sh, which uses
+  # -scheme PuzzleHouse -sdk iphoneos) keep working untouched. A future
+  # build-mac.sh targets -scheme PuzzleHouseMac -sdk macosx.
+  PuzzleHouseMac:
+    build:
+      targets:
+        PuzzleHouseMac: all
+        PuzzleHouseMacWidget: all
+        PuzzleHouseMacShareExtension: all
     run:
       config: Debug
     test:
