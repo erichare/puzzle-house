@@ -8,6 +8,7 @@ import PuzzleCore
 import PuzzleCloudKit
 import PuzzleParsers
 import PuzzleScoring
+import PuzzleUI
 
 /// Observable application state. Holds the current user, the list of
 /// households the user belongs to, the active household, today's results, and
@@ -42,6 +43,11 @@ public final class HouseholdStore {
     public private(set) var today: PuzzleDay
     public private(set) var todayResults: [PuzzleResult] = []
     public private(set) var recentResults: [PuzzleResult] = []
+    /// All-time results for the selected household, backed by a local archive
+    /// (see `ResultArchiveStore`). Powers charts, achievements, and member
+    /// profiles. Falls back to the 14-day window when no archive store is
+    /// available (tests / CLI / the Messages extension).
+    public private(set) var allResults: [PuzzleResult] = []
     public private(set) var reactions: [Reaction] = []
     public private(set) var notificationStatus: AuthorizationStatus = .notDetermined
     public private(set) var lastDrainError: String?
@@ -52,6 +58,10 @@ public final class HouseholdStore {
     /// True while we're accepting an incoming invite and waiting for the
     /// shared house to replicate into our account. Drives the "Joining…" UI.
     public private(set) var isJoining: Bool = false
+    /// A milestone to celebrate (newly-unlocked achievement). Set by
+    /// `detectCelebration`, presented by the root view, cleared via
+    /// `consumeCelebration()`.
+    public private(set) var pendingCelebration: Celebration?
     public var preferences: UserPreferences
 
     /// How many days of history to keep loaded for streak math.
@@ -61,6 +71,7 @@ public final class HouseholdStore {
     private let queue: OfflineWriteQueue?
     private let notifications: any NotificationServicing
     private let widgetStore: WidgetSnapshotStore?
+    private let archiveStore: ResultArchiveStore?
     private let clock: @Sendable () -> Date
 
     public init(
@@ -68,6 +79,7 @@ public final class HouseholdStore {
         queue: OfflineWriteQueue? = nil,
         notifications: any NotificationServicing = NotificationService(),
         widgetStore: WidgetSnapshotStore? = nil,
+        archiveStore: ResultArchiveStore? = nil,
         preferences: UserPreferences = .init(),
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
@@ -75,6 +87,7 @@ public final class HouseholdStore {
         self.queue = queue
         self.notifications = notifications
         self.widgetStore = widgetStore
+        self.archiveStore = archiveStore
         self.preferences = preferences
         self.clock = now
         self.today = PuzzleDay(date: now(), timeZone: .current)
@@ -114,6 +127,24 @@ public final class HouseholdStore {
             gameID: gameID,
             userID: userID,
             today: today
+        )
+    }
+
+    /// The full achievement shelf for a member, computed locally from all-time
+    /// history (`allResults`). Works for any member since the shared zone gives
+    /// everyone read access to every result.
+    public func achievements(
+        for userID: String
+    ) -> [(definition: AchievementDefinition, earned: Bool, progress: AchievementProgress?)] {
+        AchievementEngine.evaluate(
+            AchievementEngine.context(results: allResults, userID: userID, today: today)
+        )
+    }
+
+    /// Just the earned badge tokens — used by the milestone-celebration de-dup.
+    public func earnedAchievements(for userID: String) -> [Achievement] {
+        AchievementEngine.earned(
+            AchievementEngine.context(results: allResults, userID: userID, today: today)
         )
     }
 
@@ -328,10 +359,34 @@ public final class HouseholdStore {
         // CloudKit yet (typical on a fresh container), or any other error
         // happens, just show an empty list rather than failing the whole load.
         reactions = (try? await service.reactions(in: id, since: windowStart)) ?? []
+        await refreshArchive(householdID: id)
+        detectCelebration()
         writeWidgetSnapshot()
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
         #endif
+    }
+
+    /// Read the on-disk archive, backfill all-time from CloudKit the first time
+    /// we see this house on this device, fold in the freshly-loaded recent
+    /// window, then publish + persist `allResults`. Avoids re-fetching all
+    /// history on every launch — only the initial backfill is a full fetch.
+    private func refreshArchive(householdID: Household.ID) async {
+        guard let archiveStore else {
+            // No App Group: fall back to the loaded window so history-dependent
+            // features still have the recent data to work with.
+            allResults = recentResults
+            return
+        }
+        var cached = archiveStore.read(householdID: householdID)
+        if cached.isEmpty {
+            cached = (try? await service.allResults(in: householdID)) ?? []
+        }
+        // `dedupe` collapses by (user, game, puzzle, day) keeping the latest
+        // submission, so folding the fresh window over the cache also absorbs
+        // edits and any stray pre-deterministic-ID records.
+        allResults = Self.dedupe(cached + recentResults)
+        archiveStore.write(allResults, householdID: householdID)
     }
 
     private func writeWidgetSnapshot() {
@@ -400,6 +455,7 @@ public final class HouseholdStore {
 
     public func deleteHousehold(_ household: Household) async throws {
         try await service.deleteHousehold(household.id)
+        archiveStore?.clear(householdID: household.id)
         households.removeAll { $0.id == household.id }
         if selectedHouseholdID == household.id {
             selectedHouseholdID = households.first?.id
@@ -408,6 +464,7 @@ public final class HouseholdStore {
                 members = []
                 todayResults = []
                 recentResults = []
+                allResults = []
             }
         }
     }
@@ -482,6 +539,10 @@ public final class HouseholdStore {
         if result.puzzleDay >= windowStart {
             recentResults = Self.dedupe(recentResults + [result])
         }
+        allResults = Self.dedupe(allResults + [result])
+        if let archiveStore, let id = selectedHouseholdID {
+            archiveStore.write(allResults, householdID: id)
+        }
         writeWidgetSnapshot()
     }
 
@@ -490,6 +551,8 @@ public final class HouseholdStore {
         try await service.deleteResult(result.id, in: householdID)
         todayResults.removeAll { $0.id == result.id }
         recentResults.removeAll { $0.id == result.id }
+        allResults.removeAll { $0.id == result.id }
+        archiveStore?.write(allResults, householdID: householdID)
     }
 
     public func react(to resultID: PuzzleResult.ID, emoji: String) async throws {
@@ -585,6 +648,37 @@ public final class HouseholdStore {
     }
     private func markFired(_ key: String) {
         UserDefaults.standard.set(today.isoString, forKey: "puzzle-house.fired.\(key)")
+    }
+
+    // MARK: - Celebrations
+
+    public func consumeCelebration() { pendingCelebration = nil }
+
+    /// Surface a celebration for any newly-earned achievement, deduped per
+    /// (household, user) so each unlock celebrates once on this device. The
+    /// first time we ever see a (household, user) we seed the set silently, so a
+    /// member with existing history isn't buried under a backlog of unlocks.
+    private func detectCelebration() {
+        guard let uid = currentUserID, let householdID = selectedHouseholdID else { return }
+        let key = "puzzle-house.celebrated.\(householdID).\(uid)"
+        let earned = earnedAchievements(for: uid)
+        let earnedIDs = earned.map(\.id)
+        guard let existing = UserDefaults.standard.stringArray(forKey: key) else {
+            UserDefaults.standard.set(earnedIDs, forKey: key)   // seed silently
+            return
+        }
+        var celebrated = Set(existing)
+        let fresh = earned.filter { !celebrated.contains($0.id) }
+        celebrated.formUnion(earnedIDs)
+        UserDefaults.standard.set(Array(celebrated), forKey: key)
+        // Only surface UI when the app is settled (not joining / first-run).
+        guard state == .ready, !isJoining else { return }
+        guard let newest = fresh.max(by: { $0.tier < $1.tier }),
+              let def = AchievementCatalog.all.first(where: { $0.id == newest.id })
+        else { return }
+        pendingCelebration = Celebration(
+            id: newest.id, title: def.title, message: def.blurb, glyph: def.glyph
+        )
     }
 
     public func updateMyMembership(

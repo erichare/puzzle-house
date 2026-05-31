@@ -10,7 +10,7 @@ public struct TodayView: View {
     @State private var openResult: PuzzleResult?
     @State private var openMember: String?
     @State private var showingSwitcher = false
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(store: HouseholdStore) {
         self.store = store
@@ -18,7 +18,7 @@ public struct TodayView: View {
 
     public var body: some View {
         scrollBody
-            .background(backgroundGradient.ignoresSafeArea())
+            .background(PuzzleBackground().ignoresSafeArea())
             .sheet(item: $openResult) { result in
                 ResultDetailSheet(store: store, result: result)
             }
@@ -40,7 +40,7 @@ public struct TodayView: View {
             GlassEffectContainer(spacing: 20) {
                 VStack(alignment: .leading, spacing: 20) {
                     header
-                    ChecklistSection(store: store)
+                    ChecklistSection(store: store) { openMember = $0 }
                     leaderboard
                     resultCards
                 }
@@ -58,19 +58,6 @@ public struct TodayView: View {
     }
 
     private struct MemberID: Identifiable { let id: String }
-
-    private var backgroundGradient: some View {
-        let isDark = colorScheme == .dark
-        return LinearGradient(
-            colors: isDark
-                ? [Color(red: 0.10, green: 0.07, blue: 0.05),
-                   Color(red: 0.16, green: 0.10, blue: 0.06)]
-                : [Color(red: 1.00, green: 0.97, blue: 0.93),
-                   Color(red: 1.00, green: 0.91, blue: 0.83)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
 
     private var header: some View {
         HStack(alignment: .top) {
@@ -119,9 +106,7 @@ public struct TodayView: View {
                 }
             }
         }
-        .padding(PuzzleTheme.cardPadding)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius))
-        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+        .puzzleCard()
     }
 
     private var emptyLeaderboard: some View {
@@ -209,28 +194,26 @@ public struct TodayView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .transition(.asymmetric(
+                    .puzzleTransition(.asymmetric(
                         insertion: .scale(scale: 0.92).combined(with: .opacity),
                         removal: .opacity
-                    ))
+                    ), reduceMotion: reduceMotion)
                 }
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: store.todayResults.map(\.id))
+        .puzzleAnimation(
+            .spring(response: 0.4, dampingFraction: 0.85),
+            value: store.todayResults.map(\.id),
+            reduceMotion: reduceMotion
+        )
     }
 
     private var emptyResults: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "puzzlepiece")
-                .font(.system(size: 36))
-                .foregroundStyle(.secondary)
-            Text("No results yet")
-                .font(.headline)
-            Text("Tap + to paste or share a puzzle.")
-                .font(.callout).foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 30)
-        .frame(maxWidth: .infinity)
+        PuzzleEmptyState(
+            symbol: "puzzlepiece",
+            title: "No results yet",
+            message: "Tap + to paste or share a puzzle."
+        )
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius))
     }
 }

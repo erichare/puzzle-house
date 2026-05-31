@@ -32,7 +32,15 @@ public struct MemberDetailSheet: View {
                     if let weekly {
                         weeklyCard(weekly)
                     }
+                    recordsCard
+                    if userID != store.currentUserID, let me = store.currentUserID {
+                        headToHeadCard(viewer: me)
+                    }
+                    activityStrip
                     streakRows
+                    GameBreakdownSection(store: store, userID: userID)
+                    TrophyShelfView(items: store.achievements(for: userID))
+                        .puzzleCard()
                     todaySection(mine)
                 }
                 .padding()
@@ -68,6 +76,80 @@ public struct MemberDetailSheet: View {
                 }
             }
             Spacer()
+        }
+    }
+
+    private var recordsCard: some View {
+        let r = MemberProfileStats.records(results: store.allResults, userID: userID)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Records").font(.subheadline).foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                stat("Solved", String(r.totalSolved))
+                stat("Played", String(r.totalPlayed))
+                stat("Rate", "\(Int((r.solveRate * 100).rounded()))%")
+                stat("Days", String(r.activeDays))
+            }
+            if r.bestWordleGuesses != nil || r.bestConnectionsMistakes != nil {
+                HStack(spacing: 12) {
+                    if let w = r.bestWordleGuesses { stat("Best Wordle", "\(w)/6") }
+                    if let c = r.bestConnectionsMistakes { stat("Best Conn.", "\(c) off") }
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func headToHeadCard(viewer: String) -> some View {
+        let h = MemberProfileStats.headToHead(results: store.allResults, viewer: viewer, opponent: userID)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Head-to-head").font(.subheadline).foregroundStyle(.secondary)
+            if h.total == 0 {
+                Text("No shared puzzles yet.").font(.caption).foregroundStyle(.tertiary)
+            } else {
+                HStack {
+                    Text("You").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(h.wins)–\(h.losses)\(h.ties > 0 ? "–\(h.ties)" : "")")
+                        .font(.title3.bold().monospacedDigit())
+                    Spacer()
+                    Text(store.displayName(for: userID)).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var activityStrip: some View {
+        let timeline = MemberProfileStats.activityTimeline(
+            results: store.allResults, userID: userID, today: store.today, days: 28
+        )
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("Last 4 weeks").font(.subheadline).foregroundStyle(.secondary)
+            HStack(spacing: 2) {
+                ForEach(timeline) { day in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(activityColor(day.gamesPlayed))
+                        .frame(width: 8, height: 8)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Activity over the last 4 weeks")
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func activityColor(_ count: Int) -> Color {
+        switch count {
+        case 0: return Color.secondary.opacity(0.12)
+        case 1: return Color.accentColor.opacity(0.35)
+        case 2: return Color.accentColor.opacity(0.6)
+        default: return Color.accentColor
         }
     }
 

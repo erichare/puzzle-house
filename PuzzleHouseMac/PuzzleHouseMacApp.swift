@@ -21,9 +21,10 @@ struct PuzzleHouseMacApp: App {
         let appGroup = AppGroupContainer(appGroupIdentifier: PuzzleHouseIdentifiers.appGroup)
         let queue = appGroup.map { OfflineWriteQueue(container: $0) }
         let widgetStore = appGroup.map { WidgetSnapshotStore(container: $0) }
+        let archiveStore = appGroup.map { ResultArchiveStore(container: $0) }
         let service = CloudKitService(writeQueue: queue)
         let store = HouseholdStore(
-            service: service, queue: queue, widgetStore: widgetStore
+            service: service, queue: queue, widgetStore: widgetStore, archiveStore: archiveStore
         )
         _store = State(wrappedValue: store)
         PuzzleHouseSharedStore.current = store

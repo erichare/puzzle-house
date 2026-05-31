@@ -11,6 +11,9 @@ public struct ResultCard: View {
     public let hideGrid: Bool
     public let reactionSummary: [(emoji: String, count: Int)]
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var totalReactions: Int { reactionSummary.reduce(0) { $0 + $1.count } }
+
     public init(
         result: PuzzleResult,
         authorName: String,
@@ -94,15 +97,15 @@ public struct ResultCard: View {
                     ForEach(reactionSummary.prefix(3), id: \.emoji) { pair in
                         Text(pair.emoji)
                     }
-                    if reactionSummary.count > 0 {
-                        Text("\(reactionSummary.reduce(0) { $0 + $1.count })")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("\(totalReactions)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Color.secondary.opacity(0.10), in: Capsule())
+                .animation(reduceMotion ? nil : .snappy, value: totalReactions)
             }
             Spacer()
             Text(result.submittedAt, style: .time)

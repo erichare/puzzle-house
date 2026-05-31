@@ -8,9 +8,12 @@ import PuzzleUI
 /// per-result cards so you can see at a glance what's still outstanding.
 public struct ChecklistSection: View {
     @Bindable var store: HouseholdStore
+    /// Optional tap handler so matrix cells open a member's detail. Nil = inert.
+    var onSelectMember: ((String) -> Void)?
 
-    public init(store: HouseholdStore) {
+    public init(store: HouseholdStore, onSelectMember: ((String) -> Void)? = nil) {
         self.store = store
+        self.onSelectMember = onSelectMember
     }
 
     private var rows: [ChecklistRow] {
@@ -37,9 +40,7 @@ public struct ChecklistSection: View {
                 }
             }
         }
-        .padding(PuzzleTheme.cardPadding)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: PuzzleTheme.cardCornerRadius))
-        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+        .puzzleCard()
     }
 
     @ViewBuilder
@@ -87,57 +88,16 @@ public struct ChecklistSection: View {
 
     @ViewBuilder
     private func cell(userID: String, state: CompletionState, isMe: Bool) -> some View {
-        let emoji = store.avatarEmoji(for: userID)
-        ZStack {
-            Circle()
-                .strokeBorder(borderColor(for: state), lineWidth: 1.5)
-                .background(Circle().fill(fillColor(for: state)))
-                .frame(width: 28, height: 28)
-            Text(stateGlyph(for: state, fallback: emoji))
-                .font(.caption)
-        }
-        // Uniform footprint for every cell so columns line up; the accent ring
-        // marks your own cell (always the first in each row).
-        .frame(width: 34, height: 34)
-        .overlay {
-            if isMe {
-                Circle()
-                    .strokeBorder(Color.accentColor, lineWidth: 2)
-                    .frame(width: 33, height: 33)
-            }
-        }
-        .accessibilityLabel(Text("\(store.displayName(for: userID))\(isMe ? " (you)" : "") \(accessibilityState(for: state))"))
-    }
-
-    private func stateGlyph(for state: CompletionState, fallback emoji: String) -> String {
-        switch state {
-        case .solved: return "✓"
-        case .failed: return "✗"
-        case .notPlayed: return "–"
-        }
-    }
-
-    private func fillColor(for state: CompletionState) -> Color {
-        switch state {
-        case .solved: return .green.opacity(0.18)
-        case .failed: return .red.opacity(0.15)
-        case .notPlayed: return Color.secondary.opacity(0.08)
-        }
-    }
-
-    private func borderColor(for state: CompletionState) -> Color {
-        switch state {
-        case .solved: return .green.opacity(0.55)
-        case .failed: return .red.opacity(0.45)
-        case .notPlayed: return Color.secondary.opacity(0.35)
-        }
-    }
-
-    private func accessibilityState(for state: CompletionState) -> String {
-        switch state {
-        case .solved: return "solved"
-        case .failed: return "failed"
-        case .notPlayed: return "not played"
+        let base = MatrixCell(
+            state: state,
+            isMe: isMe,
+            accessibilityName: store.displayName(for: userID)
+        )
+        if let onSelectMember {
+            Button { onSelectMember(userID) } label: { base }
+                .buttonStyle(.plain)
+        } else {
+            base
         }
     }
 

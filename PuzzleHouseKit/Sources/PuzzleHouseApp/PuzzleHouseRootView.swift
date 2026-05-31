@@ -1,9 +1,11 @@
 import SwiftUI
 import PuzzleCore
+import PuzzleUI
 
 public struct PuzzleHouseRootView: View {
     @Bindable var store: HouseholdStore
     @State private var didPromptProfile = false
+    @State private var showOnboarding = !ProfileDefaults.hasOnboarded
 
     public init(store: HouseholdStore) {
         self.store = store
@@ -15,10 +17,10 @@ public struct PuzzleHouseRootView: View {
             case .idle, .loading:
                 ProgressView("Loading your houses\u{2026}")
             case .error(let message):
-                ContentUnavailableView(
-                    "Couldn't load",
-                    systemImage: "exclamationmark.icloud",
-                    description: Text(message)
+                PuzzleEmptyState(
+                    symbol: "exclamationmark.icloud",
+                    title: "Couldn't load",
+                    message: message
                 )
             case .ready:
                 content
@@ -33,34 +35,31 @@ public struct PuzzleHouseRootView: View {
         .overlay {
             if store.isJoining { JoiningOverlay() }
         }
+        .overlay {
+            if let celebration = store.pendingCelebration {
+                CelebrationOverlay(celebration: celebration) {
+                    store.consumeCelebration()
+                }
+                .transition(.opacity)
+                .zIndex(1)
+            }
+        }
         .animation(.snappy, value: store.isJoining)
+        .animation(.snappy, value: store.pendingCelebration)
         // One-time prompt to pick a name + avatar so we don't show "Me" /
-        // "New member" to the rest of the house.
+        // "New member" to the rest of the house. Suppressed while the richer
+        // onboarding flow is up so we don't stack modals.
         .sheet(isPresented: Binding(
-            get: { store.needsProfileSetup && !didPromptProfile },
+            get: { store.needsProfileSetup && !didPromptProfile && !showOnboarding },
             set: { presenting in if !presenting { didPromptProfile = true } }
         )) {
             EditMyMembershipSheet(store: store)
         }
+        .onboardingCover(isPresented: $showOnboarding, store: store)
     }
 
     private var content: some View {
-        TabView {
-            TodayView(store: store)
-                .tabItem { Label("Today", systemImage: "calendar.circle") }
-
-            StatsView(store: store)
-                .tabItem { Label("Stats", systemImage: "chart.bar.xaxis") }
-
-            HistoryView(store: store)
-                .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
-
-            HouseSwitcherView(store: store)
-                .tabItem { Label("Houses", systemImage: "house") }
-
-            SettingsView(store: store)
-                .tabItem { Label("Settings", systemImage: "gearshape") }
-        }
+        PuzzleHouseAdaptiveRoot(store: store)
     }
 }
 
@@ -79,5 +78,23 @@ private struct JoiningOverlay: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
         }
         .transition(.opacity)
+    }
+}
+
+private extension View {
+    /// Presents onboarding as a full-screen cover on iOS and a sheet on macOS
+    /// (macOS has no `fullScreenCover`).
+    @ViewBuilder
+    func onboardingCover(isPresented: Binding<Bool>, store: HouseholdStore) -> some View {
+        #if os(iOS)
+        self.fullScreenCover(isPresented: isPresented) {
+            OnboardingFlow(store: store) { isPresented.wrappedValue = false }
+        }
+        #else
+        self.sheet(isPresented: isPresented) {
+            OnboardingFlow(store: store) { isPresented.wrappedValue = false }
+                .frame(minWidth: 520, minHeight: 600)
+        }
+        #endif
     }
 }

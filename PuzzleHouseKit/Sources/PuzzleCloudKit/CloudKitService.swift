@@ -40,6 +40,10 @@ public protocol CloudKitServicing: Sendable {
         in householdID: Household.ID,
         since day: PuzzleDay
     ) async throws -> [PuzzleResult]
+    /// All results for a household, all-time, following query cursors to
+    /// completion. Used to seed the local all-results archive that powers
+    /// charts, achievements, and member profiles.
+    func allResults(in householdID: Household.ID) async throws -> [PuzzleResult]
 
     func react(
         to resultID: PuzzleResult.ID,
@@ -349,6 +353,32 @@ public final class CloudKitService: CloudKitServicing, @unchecked Sendable {
             guard case .success(let record) = r else { return nil }
             return try? RecordMapping.puzzleResult(from: record)
         }
+    }
+
+    public func allResults(in householdID: Household.ID) async throws -> [PuzzleResult] {
+        let (database, zoneID) = try await resolve(householdID)
+        let predicate = NSPredicate(format: "householdID == %@", householdID)
+        let query = CKQuery(recordType: RecordType.puzzleResult, predicate: predicate)
+
+        var collected: [PuzzleResult] = []
+        func absorb(_ matches: [(CKRecord.ID, Result<CKRecord, any Error>)]) {
+            for (_, r) in matches {
+                guard case .success(let record) = r else { continue }
+                if let parsed = try? RecordMapping.puzzleResult(from: record) {
+                    collected.append(parsed)
+                }
+            }
+        }
+
+        // Follow query cursors to completion so we get the full history, not
+        // just the first page (CloudKit caps a single page at ~100-300 records).
+        var page = try await database.records(matching: query, inZoneWith: zoneID)
+        absorb(page.matchResults)
+        while let cursor = page.queryCursor {
+            page = try await database.records(continuingMatchFrom: cursor)
+            absorb(page.matchResults)
+        }
+        return collected
     }
 
     // MARK: - Reactions
