@@ -47,6 +47,7 @@ final class FailingFakeService: CloudKitServicing, @unchecked Sendable {
     func recentResults(in householdID: Household.ID, since day: PuzzleDay) async throws -> [PuzzleResult] {
         []
     }
+    func allResults(in householdID: Household.ID) async throws -> [PuzzleResult] { [] }
     func react(to resultID: PuzzleResult.ID, in householdID: Household.ID, emoji: String) async throws {}
     func clearReaction(to resultID: PuzzleResult.ID, in householdID: Household.ID) async throws {}
     func reactions(in householdID: Household.ID, since day: PuzzleDay) async throws -> [Reaction] { [] }

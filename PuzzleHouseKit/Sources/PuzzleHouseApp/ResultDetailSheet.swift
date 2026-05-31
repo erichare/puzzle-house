@@ -185,69 +185,21 @@ public struct ResultDetailSheet: View {
             Text("Reactions")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            if !summary.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(summary, id: \.emoji) { pair in
-                        HStack(spacing: 4) {
-                            Text(pair.emoji)
-                            Text("\(pair.count)")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.accentColor.opacity(0.12), in: Capsule())
-                    }
-                }
-            } else if isOwn {
+            if summary.isEmpty && isOwn {
                 Text("Others' reactions will show up here.")
                     .font(.caption).foregroundStyle(.tertiary)
             }
-            if !isOwn {
-                GlassEffectContainer(spacing: 12) {
-                    HStack(spacing: 12) {
-                        ForEach(Self.quickReactions, id: \.self) { emoji in
-                            reactionButton(emoji: emoji, isSelected: myEmoji == emoji)
-                        }
-                    }
-                }
-                if myEmoji != nil {
-                    Text("Tap your reaction again to remove it.")
-                        .font(.caption2).foregroundStyle(.tertiary)
-                }
-            }
+            ReactionPicker(
+                summary: summary,
+                myEmoji: myEmoji,
+                canReact: !isOwn,
+                onReact: { emoji in Task { try? await store.react(to: result.id, emoji: emoji) } },
+                onClear: { Task { try? await store.clearMyReaction(on: result.id) } }
+            )
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
-    }
-
-    static let quickReactions = ["🔥", "🎉", "👏", "🤯", "😂", "❤️"]
-
-    @ViewBuilder
-    private func reactionButton(emoji: String, isSelected: Bool) -> some View {
-        Button {
-            Task {
-                #if canImport(UIKit)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                #endif
-                if isSelected {
-                    try? await store.clearMyReaction(on: result.id)
-                } else {
-                    try? await store.react(to: result.id, emoji: emoji)
-                }
-            }
-        } label: {
-            Text(emoji).font(.title2)
-                .frame(width: 44, height: 44)
-        }
-        .buttonStyle(.plain)
-        .glassEffect(
-            isSelected
-                ? .regular.tint(.accentColor.opacity(0.55)).interactive()
-                : .regular.interactive(),
-            in: Circle()
-        )
     }
 
     @ViewBuilder

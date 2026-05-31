@@ -18,9 +18,10 @@ struct PuzzleHouseAppEntry: App {
         let appGroup = AppGroupContainer(appGroupIdentifier: PuzzleHouseIdentifiers.appGroup)
         let queue = appGroup.map { OfflineWriteQueue(container: $0) }
         let widgetStore = appGroup.map { WidgetSnapshotStore(container: $0) }
+        let archiveStore = appGroup.map { ResultArchiveStore(container: $0) }
         let service = CloudKitService(writeQueue: queue)
         let store = HouseholdStore(
-            service: service, queue: queue, widgetStore: widgetStore
+            service: service, queue: queue, widgetStore: widgetStore, archiveStore: archiveStore
         )
         _store = State(wrappedValue: store)
         PuzzleHouseSharedStore.current = store
@@ -30,11 +31,19 @@ struct PuzzleHouseAppEntry: App {
         WindowGroup {
             PuzzleHouseRootView(store: store)
                 .onChange(of: scenePhase) { _, phase in
-                    guard phase == .active else { return }
-                    Task {
-                        await store.drainPendingShareIfNeeded()
-                        await store.drainPendingResults()
-                        await store.refresh()
+                    switch phase {
+                    case .active:
+                        Task {
+                            await store.drainPendingShareIfNeeded()
+                            await store.drainPendingResults()
+                            await store.refresh()
+                        }
+                    case .background:
+                        // If anything is still queued, ask iOS to wake us later
+                        // to flush it without the user reopening the app.
+                        BackgroundDrain.schedule()
+                    default:
+                        break
                     }
                 }
         }
@@ -52,6 +61,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // Settings — this call only enables APNs delivery for content-only
         // (silent) pushes, which don't require user permission.
         application.registerForRemoteNotifications()
+        BackgroundDrain.register()
         return true
     }
 

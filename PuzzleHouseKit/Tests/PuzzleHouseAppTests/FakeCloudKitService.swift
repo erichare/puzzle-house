@@ -105,6 +105,10 @@ final class FakeCloudKitService: CloudKitServicing, @unchecked Sendable {
         return allDays.flatMap { d, results in d >= day ? results : [] }
     }
 
+    func allResults(in householdID: Household.ID) async throws -> [PuzzleResult] {
+        (resultsByDay[householdID] ?? [:]).flatMap { _, results in results }
+    }
+
     func react(to resultID: PuzzleResult.ID, in householdID: Household.ID, emoji: String) async throws {
         let id = Reaction.deterministicID(targetResultID: resultID, authorUserID: userID)
         reactions.removeAll { $0.id == id }

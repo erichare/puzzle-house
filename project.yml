@@ -86,7 +86,13 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Puzzle House
         INFOPLIST_KEY_NSHumanReadableCopyright: ""
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Puzzle House scans recent screenshots in your Photos to find puzzle results so you don't have to copy and paste."
-        INFOPLIST_KEY_UIBackgroundModes: "remote-notification"
+        # The main app uses an explicit INFOPLIST_FILE (PuzzleHouse/Info.plist),
+        # whose keys win over these INFOPLIST_KEY_* settings — so the
+        # authoritative UIBackgroundModes ("remote-notification" + "fetch", the
+        # latter for the BGAppRefreshTask offline-queue drain) and
+        # BGTaskSchedulerPermittedIdentifiers ("com.jestats.PuzzleHouse.drain")
+        # live there. This mirror keeps the build setting consistent.
+        INFOPLIST_KEY_UIBackgroundModes: "remote-notification fetch"
         # App Store validator (error 90474) requires the unsuffixed
         # UISupportedInterfaceOrientations key. The space-separated
         # string is split into an array by Xcode's plist generator.
@@ -95,7 +101,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         GENERATE_INFOPLIST_FILE: YES
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.4.0"
 
   PuzzleHouseShareExtension:
     type: app-extension
@@ -116,7 +122,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: PuzzleHouseShareExtension/PuzzleHouseShareExtension.entitlements
         SKIP_INSTALL: YES
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.4.0"
 
   PuzzleHouseMessages:
     type: app-extension.messages
@@ -139,7 +145,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: PuzzleHouseMessages/PuzzleHouseMessages.entitlements
         SKIP_INSTALL: YES
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.4.0"
 
   PuzzleHouseWidget:
     type: app-extension
@@ -160,7 +166,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: PuzzleHouseWidget/PuzzleHouseWidget.entitlements
         SKIP_INSTALL: YES
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.4.0"
 
   # Native macOS app. Shares PuzzleHouseKit (models, CloudKit, store, views)
   # with the iOS target — same CloudKit container / app group / bundle family
@@ -203,7 +209,7 @@ targets:
         INFOPLIST_KEY_NSHumanReadableCopyright: ""
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Puzzle House scans recent screenshots to find puzzle results so you don't have to copy and paste."
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.4.0"
 
   # Native macOS WidgetKit widget. Reuses the exact iOS widget source
   # (PuzzleHouseWidget/PuzzleHouseWidget.swift) — it is fully cross-platform and
@@ -230,7 +236,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: PuzzleHouseMacWidget/PuzzleHouseMacWidget.entitlements
         SKIP_INSTALL: YES
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.4.0"
 
   # Native macOS Share extension (Finder/Safari share menu). Reuses the shared
   # ShareImportCore + ShareStatusView from PuzzleShareKit via an NSViewController
@@ -256,7 +262,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: PuzzleHouseMacShareExtension/PuzzleHouseMacShareExtension.entitlements
         SKIP_INSTALL: YES
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.4.0"
 
 schemes:
   PuzzleHouse:

@@ -9,6 +9,14 @@ import PuzzleCloudKit
 enum ProfileDefaults {
     private static let nameKey = "puzzle-house.profile.displayName"
     private static let emojiKey = "puzzle-house.profile.avatarEmoji"
+    private static let onboardedKey = "puzzle-house.profile.hasOnboarded"
+
+    /// Whether the user has completed (or skipped) the first-run onboarding
+    /// flow. Gates the welcome flow so it shows exactly once.
+    static var hasOnboarded: Bool {
+        get { defaults.bool(forKey: onboardedKey) }
+        set { defaults.set(newValue, forKey: onboardedKey) }
+    }
 
     private static var defaults: UserDefaults {
         UserDefaults(suiteName: PuzzleHouseIdentifiers.appGroup) ?? .standard

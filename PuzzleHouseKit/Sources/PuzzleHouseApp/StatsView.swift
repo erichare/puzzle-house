@@ -23,8 +23,14 @@ public struct StatsView: View {
             )
             VStack(alignment: .leading, spacing: 16) {
                 summaryCards(stats: stats)
+                RecapShareButton(store: store)
                 highlightsSection
+                GameBreakdownSection(store: store)
                 memberTable(stats: stats)
+                if let uid = store.currentUserID {
+                    TrophyShelfView(items: store.achievements(for: uid))
+                        .puzzleCard()
+                }
             }
             .padding()
             .macReadableWidth()

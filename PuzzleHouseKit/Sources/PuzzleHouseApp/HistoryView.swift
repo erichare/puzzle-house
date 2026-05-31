@@ -17,10 +17,10 @@ public struct HistoryView: View {
     public var body: some View {
         Group {
             if store.recentResults.isEmpty {
-                ContentUnavailableView(
-                    "No history yet",
-                    systemImage: "clock.arrow.circlepath",
-                    description: Text("Submit a few results — they'll show up here grouped by day.")
+                PuzzleEmptyState(
+                    symbol: "clock.arrow.circlepath",
+                    title: "No history yet",
+                    message: "Submit a few results — they'll show up here grouped by day."
                 )
             } else {
                 list
